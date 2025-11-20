@@ -1,0 +1,16 @@
+Title;Description
+Sample_ID;Unique sample ID.
+Accession;Winter oilseed rape accession - refer to file 'WOSR_Accession_list.csv'.
+Growth season;"Samples were collected over three growing seasons (2014-2015; 2015-2016; 2016-2017)."
+Growth condition;Winter oilseed rape plants were grown in fields using single plots of 6.75 m² as described by Corlouer et al. 2024 (Theor. Appl. Genet. 137, 164 - https://doi.org/10.1007/s00122-024-04664-3) or under semi-controlled conditions (tunnel) using tanks of 1m3 as described by Bianchetti et al. 2024 (Physiol. Plant. 176(1), e14130 - https://doi.org/10.1111/ppl.14130).
+N regime;"Refers to the Nitrogen (N) fertilization applied at bolting stage as described by Corlouer et al. 2024 (Theor. Appl. Genet. 137, 164 - https://doi.org/10.1007/s00122-024-04664-3). N+, optimal N supply for a target seed yield of 3.5 t.ha-1; N-, suboptimal N regime corresponding to the N+ supply lowered by 80-100 kg.ha-1 of N."
+W regime;"Refers to the watering (W) conditions applied from the flowering stage onwards as described by Bianchetti et al. 2024 (Physiol. Plant. 176(1), e14130 - https://doi.org/10.1111/ppl.14130). W+, optimal watering for which the water potential of the substrate was maintained above -200 mbar throughout the growth cycle; W-, suboptimal watering for which the water potential of the substrate was lowered and maintained around -600 mbar."
+Tissue;Samples were from roots, leaves, stems, flowers or pods.
+BBCH dev. stage;"Samples were collected on plants at different developmental stages, according to the BBCH scale (Lancashire PD et al. 1991 Ann. Appl. Biol. 119, 561–601; https://doi.org/10.1111/j.1744-7348.1991.tb04895.x) with: 15-19 stage = rosette development (5 to 9 first leaves); 31-35 stage = bolting stage (1 to 5 internodes); 55-59 stage = emergence of the main inflorescence (individualised closed buds); 61-65 stage = flowering (10 to 50% open flowers on the main inflorescence); 70-75 stage = seed development (10 to 50% of the pods reach their final size - ca. 200-350 growing degree days after flowering); 79-85 stage = seed maturation (10-50% of the pods reach full maturity); 89-91 stage = full maturity, senescent plant (ca. 950 growing degree days after flowering). "
+N content (%DM);N content determined by the Dumas combustion and expressed in % of dry matter.
+N_model_set-type;Samples were selected for the calibration (Cal) or validation (Val) for the N prediction model. Some were excluded (Outliers).
+C content (%DM);C content determined by the Dumas combustion and expressed in % of dry matter.
+C_model_set-type;Samples were selected for the calibration (Cal) or validation (Val) for the C prediction model. Some were excluded (Outlier).
+Spectra_acquisition_year;All NIRS spetra were acquired in 2017.
+Cup_type;"Refers to the cup type used for NIRS spectra acquisition : “fix"" corresponds to a 22 mm diameter glass vial (Fiolax 52x22mm ref 83657, Nipro glass Germany) on the fixed support IN 582C22 and ""rotating"" corresponds to a 51 mm diameter quartz bottom cup IN 311-S on the rotating support IN 311/C."
+12489,6 to 3594,9;Absorbance values measured at each wavenumber of the NIRS spectrum from 12489,6 to 3594,9 cm-1. 
