@@ -14,22 +14,48 @@ editor: visual
 
 ```{r}
 require(ggplot2)
-table(data_NIRS_raw$`Growth condition`, data_NIRS_raw$`N regime`)
+require(cowplot)
 
+#Barplot nu nombre d'observations pour les modalité des variables qualitatives
+
+#Création de la fonction "eq" pour faire les barplots
 eq <- function(x) {
   data_NIRS_raw  |> 
-  ggplot() + aes(x = x) +
-  geom_bar()
+    ggplot() + aes(x = x) +
+    geom_bar(fill = "darkolivegreen3") + 
+    labs(y = "Nombre")+
+    theme(axis.line = element_line(colour = "black"),
+          panel.grid.major = element_blank(), #Suppression de la grille majeure
+          panel.grid.minor = element_blank(), #suppression de la grille mineure
+          panel.border = element_blank(), #suppression du cadre
+          panel.background = element_blank(), #suppression du fond
+          text = element_text(size = 12),#augmentation de la taille des labels
+          axis.title.x=element_blank(),#suppression du titre des x
+          axis.ticks.x=element_blank())#suppression des x ticks
 }
 
+#Barplot des différentes variables qualitatives
 plot1 <- eq(data_NIRS_raw$`Growth season`)
+plot1 <- plot1 + theme(axis.text.x = element_text(angle = 45, hjust = 1))
 plot2 <- eq(data_NIRS_raw$`Growth condition`)
 plot3 <- eq(data_NIRS_raw$`N regime`)
 plot4 <- eq(data_NIRS_raw$`W regime`)
 plot5 <- eq(data_NIRS_raw$`Tissue`)
+plot5 <- plot5 + theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
-library(cowplot)
-plot_grid(plot1, plot2, plot3, plot4, plot5)
+#Création d'un panneau avec les barplots
+#Création d'une première ligne de barplots alignés
+top_row <- plot_grid(plot1, plot2, plot3, align = "h", axis = "l", ncol = 3)
+#Création d'une seconde ligne de barplots alignés
+bottom_row <- plot_grid(plot4, plot5, align = "h", axis = "l", ncol = 3)
+#Création du panneau compet contenant les deux lignes de barplots
+plot_grid(top_row, bottom_row, ncol = 1)
+
+#Création d'un barplot a part pour la variable "Accession"
+plot6 <- eq(data_NIRS_raw$`Accession`)
+plot6 <- plot6+ 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1), text = element_text(size = 7))
+plot6
 ```
 
 ## Correlation between variable
