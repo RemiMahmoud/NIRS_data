@@ -13,7 +13,7 @@ editor: visual
 ## Data repartition
 
 ```{r}
-table(data_NIRS_raw$`Growth condition`, data_NIRS_raw$`N regime`)
+table(data_NIRS_raw$`Growth condition`, data_NIRS_raw$`N regime`, data_NIRS_raw$Tissue)
 data_NIRS_raw %>% group%>% ggplot() + aes(x = `Growth condition`) +
   geom_bar()
 ```

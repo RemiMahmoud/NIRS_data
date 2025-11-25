@@ -59,7 +59,11 @@ data_NIRS <- data_NIRS_raw %>%
   mutate(Absorbance_SG_0 = sgolayfilt(Absorbance_SNV, p = 3)) %>% 
   mutate(Absorbance_SG_1 = sgolayfilt(Absorbance_SNV, p = 3, m = 1)) 
 
-
+data_NIRS$Sample_ID <- as.factor(data_NIRS$Sample_ID)
+data_NIRS$Accession <- as.factor(data_NIRS$Accession)
+data_NIRS$`N regime` <- as.factor(data_NIRS$`N regime`)
+data_NIRS$`W regime` <- as.factor(data_NIRS$`W regime`)
+data_NIRS$Tissue <- as.factor(data_NIRS$Tissue)
 
 # subsample to make plots quicker
 id_train = data_NIRS %>% 
@@ -70,6 +74,11 @@ id_train = data_NIRS %>%
 
 data_plot = data_NIRS %>% 
   inner_join(id_train)
+
+# création d'un vecteur des différentes longueur d'ondes.
+wavelength <- data_NIRS %>% filter(Sample_ID == "15_N1S1_03-19_Res_1") %>% arrange(-Wavenumber) %>%  select(Wavenumber) %>% as.matrix() %>% as.vector()
+
+
 ```
 
 
