@@ -4,16 +4,74 @@ format: pdf
 editor: visual
 ---
 
+
+```{r setup, echo = FALSE, message = FALSE, warning = FALSE}
+library(dplyr)
+library(readr)
+library(ggplot2)
+theme_set(theme_bw())
+library(tidyr)
+
+library(signal)
+
+conflicted::conflicts_prefer(dplyr::filter, dplyr::select)
+
+knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
+
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
+```
+
+```{r importation data}
+#| 
+data_NIRS_raw <- read_csv2("data/NIRS_data/Full_dataset.csv")
+fun_convert_num = function(x){
+  x = stringr::str_replace(x, ',', '.' )
+  return(as.numeric(x))
+}
+
+
+# Set data (transform wavelength in number and so on)
+data_NIRS <- data_NIRS_raw %>% 
+  select(Sample_ID, Accession, `N regime`, `W regime`, Tissue, `12489,6`:`3594,9`) %>% 
+  pivot_longer(-c(Sample_ID:Tissue), names_to = "Wavenumber",
+               values_to = "Absorbance", 
+               names_transform = fun_convert_num)%>% 
+  arrange(Sample_ID, Wavenumber) %>% 
+  mutate(Absorbance_SNV = (Absorbance - mean(Absorbance))/sd(Absorbance), .by = Sample_ID)  %>% 
+  mutate(Absorbance_SG_0 = sgolayfilt(Absorbance_SNV, p = 3)) %>% 
+  mutate(Absorbance_SG_1 = sgolayfilt(Absorbance_SNV, p = 3, m = 1)) 
+
+data_NIRS$Sample_ID <- as.factor(data_NIRS$Sample_ID)
+data_NIRS$Accession <- as.factor(data_NIRS$Accession)
+data_NIRS$`N regime` <- as.factor(data_NIRS$`N regime`)
+data_NIRS$`W regime` <- as.factor(data_NIRS$`W regime`)
+data_NIRS$Tissue <- as.factor(data_NIRS$Tissue)
+
+# subsample to make plots quicker
+id_train = data_NIRS %>% 
+  distinct(Sample_ID, Accession, `N regime`, `W regime`, Tissue ) %>% 
+  slice_sample(prop = .1, by = c(Accession, `N regime`, `W regime`, Tissue) ) %>% 
+  select(Sample_ID)
+
+
+data_plot = data_NIRS %>% 
+  inner_join(id_train)
+
+# création d'un vecteur des différentes longueur d'ondes.
+wavelength <- data_NIRS %>% filter(Sample_ID == "15_N1S1_03-19_Res_1") %>% arrange(-Wavenumber) %>%  select(Wavenumber) %>% as.matrix() %>% as.vector()
+```
+
+
 ## Missing data
 
-```{r}
+```{r missing data}
 sum(is.na(data_NIRS_raw))
 # Aucune données manquante
 ```
 
 ## Data repartition
 
-```{r}
+```{r data repartition}
 require(ggplot2)
 require(cowplot)
 
@@ -61,7 +119,7 @@ plot6
 
 ## Correlation between variable
 
-```{r}
+```{r splines}
 # On décide d'approcher la courbe réelle discrétisée via des fonctions splines
 library(splines)
 snv_x <- t(scale(t(data_NIRS_raw[,-c(1:14)]))) # on recrée une matrice des ondes centrées réduite

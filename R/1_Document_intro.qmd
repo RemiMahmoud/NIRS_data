@@ -41,7 +41,6 @@ data_NIRS_raw <- read_csv2("data/NIRS_data/Full_dataset.csv")
 ```
 
 ```{r read and set data}
-
 fun_convert_num = function(x){
   x = stringr::str_replace(x, ',', '.' )
   return(as.numeric(x))
