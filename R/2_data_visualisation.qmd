@@ -13,9 +13,28 @@ editor: visual
 ## Data repartition
 
 ```{r}
+<<<<<<< HEAD
 table(data_NIRS_raw$`Growth condition`, data_NIRS_raw$`N regime`, data_NIRS_raw$Tissue)
 data_NIRS_raw %>% group%>% ggplot() + aes(x = `Growth condition`) +
+=======
+require(ggplot2)
+table(data_NIRS_raw$`Growth condition`, data_NIRS_raw$`N regime`)
+
+eq <- function(x) {
+  data_NIRS_raw  |> 
+  ggplot() + aes(x = x) +
+>>>>>>> 4fb530018ce3c493c754676b832a80db055412c9
   geom_bar()
+}
+
+plot1 <- eq(data_NIRS_raw$`Growth season`)
+plot2 <- eq(data_NIRS_raw$`Growth condition`)
+plot3 <- eq(data_NIRS_raw$`N regime`)
+plot4 <- eq(data_NIRS_raw$`W regime`)
+plot5 <- eq(data_NIRS_raw$`Tissue`)
+
+library(cowplot)
+plot_grid(plot1, plot2, plot3, plot4, plot5)
 ```
 
 ## Correlation between variable
