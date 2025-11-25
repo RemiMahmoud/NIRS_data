@@ -13,7 +13,9 @@ editor: visual
 ## Data repartition
 
 ```{r}
-Test
+table(data_NIRS_raw$`Growth condition`, data_NIRS_raw$`N regime`)
+data_NIRS_raw %>% group%>% ggplot() + aes(x = `Growth condition`) +
+  geom_bar()
 ```
 
 ## Correlation between variable
