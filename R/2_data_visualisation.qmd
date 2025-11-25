@@ -7,16 +7,13 @@ editor: visual
 ## Missing data
 
 ```{r}
-
+sum(is.na(data_NIRS_raw))
+# Aucune données manquante
 ```
 
 ## Data repartition
 
 ```{r}
-<<<<<<< HEAD
-table(data_NIRS_raw$`Growth condition`, data_NIRS_raw$`N regime`, data_NIRS_raw$Tissue)
-data_NIRS_raw %>% group%>% ggplot() + aes(x = `Growth condition`) +
-=======
 require(ggplot2)
 require(cowplot)
 
@@ -25,11 +22,6 @@ require(cowplot)
 #Création de la fonction "eq" pour faire les barplots
 eq <- function(x) {
   data_NIRS_raw  |> 
-<<<<<<< HEAD
-  ggplot() + aes(x = x) +
->>>>>>> 4fb530018ce3c493c754676b832a80db055412c9
-  geom_bar()
-=======
     ggplot() + aes(x = x) +
     geom_bar(fill = "darkolivegreen3") + 
     labs(y = "Nombre")+
@@ -41,7 +33,6 @@ eq <- function(x) {
           text = element_text(size = 12),#augmentation de la taille des labels
           axis.title.x=element_blank(),#suppression du titre des x
           axis.ticks.x=element_blank())#suppression des x ticks
->>>>>>> 818e19965b8429d4b54fc0c2bb6fb03a289ba797
 }
 
 #Barplot des différentes variables qualitatives
@@ -71,5 +62,21 @@ plot6
 ## Correlation between variable
 
 ```{r}
+# On décide d'approcher la courbe réelle discrétisée via des fonctions splines
+library(splines)
+snv_x <- t(scale(t(data_NIRS_raw[,-c(1:14)]))) # on recrée une matrice des ondes centrées réduite
+# En voulant reprendre les data.frame, déja transformé, j'avais des problèles de classes d'objet... d'ou ce nouveau snv_x
 
+# nombre de splines 
+n_splines = 50
+
+B <- bs(wavelength, df = n_splines) # Création des splines
+# matplot(wavelength, B, type = "l", col = "blue", lty = 1) # affichage des différentes fonctions
+
+mod <- lm(x ~., data = data.frame(x = snv_x[1,], B)) # modèle linéaire entre la première courbe et les splines
+
+alpha <- coef(mod)[-1]
+spl <- B%*% alpha + coef(mod)[1] # création de la nouvelle courbe
+plot(wavelength, snv_x[1,], type = "l", col = "blue")
+lines(wavelength, spl, col = "red")
 ```
