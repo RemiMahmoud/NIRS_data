@@ -22,7 +22,7 @@ knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
 ```
 
 ```{r importation data}
-#| 
+
 data_NIRS_raw <- read_csv2("data/NIRS_data/Full_dataset.csv")
 fun_convert_num = function(x){
   x = stringr::str_replace(x, ',', '.' )
@@ -66,7 +66,7 @@ wavelength <- data_NIRS %>% filter(Sample_ID == "15_N1S1_03-19_Res_1") %>% arran
 
 ```{r missing data}
 sum(is.na(data_NIRS_raw))
-# Aucune données manquante
+# Aucune données manquante. Attention, en pivotant les données (ou en les modifiant légèrement), on peut faire disparaître des données manquante
 ```
 
 ## Data repartition
@@ -126,15 +126,28 @@ snv_x <- t(scale(t(data_NIRS_raw[,-c(1:14)]))) # on recrée une matrice des onde
 # En voulant reprendre les data.frame, déja transformé, j'avais des problèles de classes d'objet... d'ou ce nouveau snv_x
 
 # nombre de splines 
-n_splines = 50
+n_splines = 10
 
 B <- bs(wavelength, df = n_splines) # Création des splines
-# matplot(wavelength, B, type = "l", col = "blue", lty = 1) # affichage des différentes fonctions
+matplot(wavelength, B, type = "l", col = "blue", lty = 1) # affichage des différentes fonctions
 
 mod <- lm(x ~., data = data.frame(x = snv_x[1,], B)) # modèle linéaire entre la première courbe et les splines
 
 alpha <- coef(mod)[-1]
 spl <- B%*% alpha + coef(mod)[1] # création de la nouvelle courbe
+
 plot(wavelength, snv_x[1,], type = "l", col = "blue")
-lines(wavelength, spl, col = "red")
+lines(wavelength, spl, col = "red") 
+
+B_w <- B
+
+for(i in length(alpha)){
+  B_w[,i] <- -B_w[,i] * alpha[i]
+}
+
+matplot(wavelength, B_w, type = "l", lty = 1) # affichage des différentes
+lines(wavelength, snv_x[1,], type = "l", col = "blue")
+lines(wavelength, spl, col = "red") 
+
+
 ```
