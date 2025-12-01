@@ -169,24 +169,4 @@ res <- cbind.data.frame(data_NIRS_raw[1:2427, 9], res[,-1])
 mod <- lm(`N.content...DM.`~., data = data.frame(res))
 F_mod <- summary(mod)$fstatistic[[1]]
 F_mod
-
-#Prédictions
-require(pls)
-#Taille de l'échantillon
-n = nrow(res)              
-#Création des segments
-segments = cvsegments(n,10)  
-#Création d'un vecteur vide pour acceuillir les valeur prédites du modèle
-cvpred = rep(0,n) 
-
-#Pour tous les segments
-for (k in 1:10) {
-   #Ajustement du modèle sur tous les segments sauf le kième
-   dta = lm(`N.content...DM.`~.,data=res[-segments[[k]],])
-   #Prediction avec le modèle sur le segment k
-   cvpred[segments[[k]]] = predict(dta,newdata=res[segments[[k]],])
-}
-
-#Calcul du PRESS du modèle
-PRESS = sum((res$`N.content...DM.`-cvpred)^2)
 ```
