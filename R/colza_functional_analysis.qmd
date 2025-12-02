@@ -1,0 +1,25 @@
+---
+title: "Analyse fonctionnelle du Colza"
+format: pdf
+editor: visual
+---
+
+## Première ACP fonctionnelle sur les données
+
+Le but ici n'est pas de réaliser une belle ACP fonctionnelle ou d'analyser les données, il s'agit juste de se familiariser avec la méthode.
+
+```{r}
+rangeval <- c(min(wavelength), max(wavelength)) # définition de l'échelle (les longueurs d'ondes)
+nbasis <- 50 # Nombre de splines utilisées
+basisobj <- create.bspline.basis(rangeval = rangeval, nbasis = nbasis) # création d'une base d'objet
+
+# convertir les données discrètes en fd (estimation par régression sur la base)
+fdsmooth <- smooth.basis(argvals = wavelength, y = as.matrix(t(snv_x)), fdParobj = basisobj)
+# pour y les lignes doivent être les valeurs discrètes et les colonnes les individus
+
+fdobj <- fdsmooth$fd
+
+# ACP fonctionnelle
+res.fpca <- pca.fd(fdobj)
+plot.pca.fd(res.fpca)
+```
