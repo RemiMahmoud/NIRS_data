@@ -1,0 +1,92 @@
+---
+title: "Resultat de la thèse"
+subtitle: "Première analyse du jeu de données pour reproduire les résultats de la thèse"
+format: html
+editor: visual
+---
+
+```{r}
+library(readr)
+library(tidyverse)
+# rm(list = ls())
+```
+
+## Importation des données
+
+### Graines
+
+```{r}
+graines <- read.table("data/NIRS_experiment/Graines/matrice_nirs_seeds_paneltotal_ready202307.csv", sep = ";", dec = ",", header = T)
+
+summary(graines[,1:10])
+
+graines$X <- as.factor(graines$X)
+graines$Genotype <- as.factor(graines$Genotype)
+graines$Rep <- as.factor(graines$Rep)
+graines$Type <- as.factor(graines$Type)
+
+graines[,-c(1:4)] <- graines[,-c(1:4)] %>% mutate(across(everything(), as.numeric))
+colnames(graines) <- as.character(c("X", "Genotype", "Rep", "Type", 800:2781))
+
+# On va centrer et réduire les spectres
+
+snv <- t(scale(t(graines[,-c(1:4)])))
+snv <- as.data.frame(snv)
+snv <- cbind(graines[,c(1:4)], snv)
+```
+
+### Feuilles sèches
+
+## Visualisation des spectres
+
+### Graines
+
+```{r}
+graines_plot <- snv %>% pivot_longer(-c(1:4), 
+                                         names_to = "Wavenumber", 
+                                         values_to = "Absorbance")
+graines_plot$Wavenumber <- as.numeric(graines_plot$Wavenumber)
+
+id_subsample <- graines_plot %>% 
+  distinct(Type, Genotype, Rep) %>% 
+  slice_sample(prop = .1, by = c(Type, Rep) ) %>% 
+  select(Genotype)
+
+
+graines_plot_subsample <- graines_plot %>% 
+  inner_join(id_subsample)
+
+# plot des 3 mesures sur une graine (génotype NAVIG_105)
+graines_plot %>% group_by(Genotype, Rep) %>% 
+  filter(Genotype == "NAVIG_105") %>% 
+  ggplot() + 
+  aes(x = Wavenumber, y = Absorbance, col = Rep) +
+  geom_line(aes(group = Rep)) 
+
+# Affichage de tous les spectre en colorant par type  
+# p1 <- 
+  
+graines_plot %>% group_by(Type, Genotype) %>% 
+  ggplot() + 
+  aes(x = Wavenumber, y = Absorbance, col = Type) +
+  geom_line(aes(group = Type), alpha = 0.3) + 
+  stat_summary(
+    aes(group = Type),
+    fun = mean,
+    geom = "line",
+    size = 1.2
+  )
+
+# maintenant je veux ajouter une courbe moyenne pour chaque Type
+
+p1 <- graines_plot %>% group_by(Type, Wavenumber) %>% 
+  summarise(mean = mean(Absorbance), .groups = "drop_last") %>% 
+  ggplot() +
+  aes(x = Wavenumber, y = mean, col = Type) +
+  geom_line(aes(group = Type))
+
+p1 + geom_line(aes(x = graines_plot$Wavenumber, 
+                   y = graines_plot$mean_Abs, 
+                   col = graines_plot$Type, 
+               group = graines_plot$Type))
+```
