@@ -8,7 +8,7 @@ editor: visual
 ```{r}
 library(readr)
 library(tidyverse)
-# rm(list = ls())
+rm(list = ls())
 ```
 
 ## Importation des données
@@ -16,45 +16,83 @@ library(tidyverse)
 ### Graines
 
 ```{r}
+# Importation des données
 graines <- read.table("data/NIRS_experiment/Graines/matrice_nirs_seeds_paneltotal_ready202307.csv", sep = ";", dec = ",", header = T)
 
-summary(graines[,1:10])
+dim(graines %>% distinct(Genotype)) # Il y a 210 génotype
 
+# summary(graines[,1:10])
+
+# gestion des classe des variables
 graines$X <- as.factor(graines$X)
 graines$Genotype <- as.factor(graines$Genotype)
 graines$Rep <- as.factor(graines$Rep)
 graines$Type <- as.factor(graines$Type)
-
 graines[,-c(1:4)] <- graines[,-c(1:4)] %>% mutate(across(everything(), as.numeric))
+
+# Changement des noms de colonnes (pour le pivot_longer)
 colnames(graines) <- as.character(c("X", "Genotype", "Rep", "Type", 800:2781))
 
 # On va centrer et réduire les spectres
-
 snv <- t(scale(t(graines[,-c(1:4)])))
 snv <- as.data.frame(snv)
 snv <- cbind(graines[,c(1:4)], snv)
+
+# Création d'un jeu de données que l'on peut plot
+graines_plot <- snv %>% pivot_longer(-c(1:4), 
+                                         names_to = "Wavenumber", 
+                                         values_to = "Absorbance")
+graines_plot$Wavenumber <- as.numeric(graines_plot$Wavenumber)
+
+# Downsampling du dataset pour des plots plus rapides
+id_subsample <- graines_plot %>% 
+  distinct(Type, Genotype, Rep) %>% 
+  slice_sample(prop = .1, by = c(Type, Rep) ) %>% 
+  select(Genotype)
+
+graines_plot_subsample <- graines_plot %>% 
+  inner_join(id_subsample)
+
+
+
+graines_plot %>% distinct(Type, Genotype) %>% filter(Type == "Swede")
+
+
+# Correction 1
+graines_MEAN <- read.table("data/NIRS_experiment/Graines/nirs_seeds_mean.csv", sep = ",", dec = ".", header = T, stringsAsFactors = T)
+
+# Correction 3
+graines_BLUP <- read.table("data/NIRS_experiment/Graines/nirs_seeds_BLUP.csv", sep = ",", dec = ".", header = T)
+graines_BLUP$X <- as.factor(graines_BLUP$X)
 ```
 
 ### Feuilles sèches
+
+```{r}
+# importation du jeu de donnée brut (sans prétraitement)
+feuilles_s <- read.table("data/NIRS_experiment/Feuilles_seches/nirs_powder_all_pretreat3.csv", header = T, stringsAsFactors = T, sep = ";", dec = ".") 
+
+# Dataset avec "all_pretreat" ==> weird
+dim(feuilles_s %>% distinct(Genotype)) # Il y a 246 Génotype différents
+
+
+# Correction 1
+feuilles_s_MEAN <- read.table("data/NIRS_experiment/Feuilles_seches/nirs_powder_MEAN.csv", header = T, stringsAsFactors = T, sep = ",", dec = ".")
+
+# Correction 2
+feuilles_s_BLUE <- read.table("data/NIRS_experiment/Feuilles_seches/nirs_powder_BLUE_FINAL.csv", header = T, stringsAsFactors = T, sep = ",", dec = ".")
+feuilles_s_BLUE$X <- as.factor(feuilles_s_BLUE$X)
+# Correction 3
+feuilles_s_BLUP <- read.table("data/NIRS_experiment/Feuilles_seches/nirs_powder_BLUP.csv", header = T, stringsAsFactors = T, sep = ",", dec = ".")
+feuilles_s_BLUP$X <- as.factor(feuilles_s_BLUP$X)
+```
 
 ## Visualisation des spectres
 
 ### Graines
 
 ```{r}
-graines_plot <- snv %>% pivot_longer(-c(1:4), 
-                                         names_to = "Wavenumber", 
-                                         values_to = "Absorbance")
-graines_plot$Wavenumber <- as.numeric(graines_plot$Wavenumber)
 
-id_subsample <- graines_plot %>% 
-  distinct(Type, Genotype, Rep) %>% 
-  slice_sample(prop = .1, by = c(Type, Rep) ) %>% 
-  select(Genotype)
-
-
-graines_plot_subsample <- graines_plot %>% 
-  inner_join(id_subsample)
 
 # plot des 3 mesures sur une graine (génotype NAVIG_105)
 graines_plot %>% group_by(Genotype, Rep) %>% 
@@ -89,4 +127,63 @@ p1 + geom_line(aes(x = graines_plot$Wavenumber,
                    y = graines_plot$mean_Abs, 
                    col = graines_plot$Type, 
                group = graines_plot$Type))
+```
+
+## Analyse des données
+
+### ACP
+
+Contrairement à la thèse, on ne possède pas dans les jeux de données, les connaissance sur les différents cluster génomique. Les ACP ne seront donc pas colorées
+
+```{r}
+library(FactoMineR)
+library(patchwork)
+
+PCA.s1 <- PCA(graines_MEAN, quali.sup = 1, graph = F)
+PCA.s3 <- PCA(graines_BLUP, quali.sup = 1, graph = F)
+PCA.l1 <- PCA(feuilles_s_MEAN, quali.sup = 1, graph = F)
+PCA.l2 <- PCA(feuilles_s_BLUE, quali.sup = 1, graph = F)
+PCA.l3 <- PCA(feuilles_s_BLUP, quali.sup = 1, graph = F)
+
+plot.s1 <- plot.PCA(PCA.s1, choix = "ind", label = "none", invisible = "quali")
+plot.s3 <- plot.PCA(PCA.s3, choix = "ind", label = "none", invisible = "quali")
+plot.l1 <- plot.PCA(PCA.l1, choix = "ind", label = "none", invisible = "quali")
+plot.l2 <- plot.PCA(PCA.l2, choix = "ind", label = "none", invisible = "quali")
+plot.l3 <- plot.PCA(PCA.l3, choix = "ind", label = "none", invisible = "quali")
+
+(plot.s1 + plot.s3) / (plot.l1 + plot.l2 + plot.l3)
+```
+
+On a une valeur étrange dans les *leaf_1*. On va afficher les spectres pour vérifier
+
+```{r}
+# changement des noms de colonnes
+colnames(feuilles_s_MEAN) <- as.character(c("Genotype", 817:2764))
+
+# Inversion du tableau de donnée
+feuilles_s_MEAN_plot <- feuilles_s_MEAN %>% pivot_longer(-c(1), 
+                                         names_to = "Wavenumber", 
+                                         values_to = "Absorbance")
+# transformation des longueur d'onde en numérique
+feuilles_s_MEAN_plot$Wavenumber <- as.numeric(feuilles_s_MEAN_plot$Wavenumber)
+
+# affichage des spectres
+plot1 <- feuilles_s_MEAN_plot %>% group_by(Genotype) %>% 
+  ggplot() + 
+  aes(x = Wavenumber, y = Absorbance) +
+  geom_line(aes(group = Genotype)) 
+
+# on va chercher la valeur abberante
+feuilles_s_MEAN_plot %>% filter(Absorbance< (-0.02)) %>% distinct(Genotype)
+
+# On veut récupérer le type de génotype. 
+graines %>% filter(Genotype == "NAVIG_215") %>% distinct(Type)
+
+# on retire cet individu du jeu de donnée. On suppose que la mesure de spectro a foiré
+feuilles_s_MEAN_215less <- feuilles_s_MEAN %>% filter(Genotype != "NAVIG_215")
+
+# On recommence la PCA et on les affiche à nouveau
+PCA.l1 <- PCA(feuilles_s_MEAN_215less, quali.sup = 1, graph = F)
+plot.l1 <- plot.PCA(PCA.l1, choix = "ind", label = "none", invisible = "quali")
+(plot.s1 + plot.s3) / (plot.l1 + plot.l2 + plot.l3)
 ```
