@@ -196,16 +196,24 @@ plot.l1 <- plot.PCA(PCA.l1, choix = "ind", label = "none", invisible = "quali")
 S.s1 <- as.matrix(graines_MEAN[,-1])
 Nw.s1 <- dim(S.s1)[2]
 
+S.s3 <- as.matrix(graines_BLUP[,-1])
+Nw.s3 <- dim(S.s3)[2]
+
 S.l1 <- as.matrix(feuilles_s_MEAN[,-1])
 Nw.l1 <- dim(S.l1)[2]
 
 S.l2 <- as.matrix(feuilles_s_BLUE[,-1])
 Nw.l2 <- dim(S.l2)[2]
 
+S.l3 <- as.matrix(feuilles_s_BLUP[,-1])
+Nw.l3 <- dim(S.l3)[2]
+
 
 H.s1 <- (S.s1 %*% t(S.s1))/Nw.s1
+H.s3 <- (S.s3 %*% t(S.s3))/Nw.s3
 H.l1 <- (S.l1 %*% t(S.l1))/Nw.l1
 H.l2 <- (S.l2 %*% t(S.l2))/Nw.l2
+H.l3 <- (S.l3 %*% t(S.l3))/Nw.l3
 
-plot(H.s1)
+
 ```
