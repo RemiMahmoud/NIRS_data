@@ -9,6 +9,7 @@ library(factoextra)
 library(readr)
 library(FactoMineR)
 library(dplyr)
+library(Hmisc)
 ```
 
 ## Importation des données pheno
@@ -26,31 +27,89 @@ pheno <- pheno |>
 
 On observe un groupe de variables "Traits physiologiques" et "Traits développementaux" dans le jeu de données. Une analyse factorielle peut permettre de voir les ressemblances entre variétés pour l'ensemble des variables et de voir la relation en les variables. l'AFM permet de voir les différences ou ressemblances entre les deux groupes de variables. 
 ```{r}
-res <- MFA(pheno, group=c(1,14,9), type=c("n","s","s"),
+res_MFA <- MFA(pheno, group=c(1,14,9), type=c("n","s","s"),
 ncp=5, name.group=c("Variété", "traits_physio","traits_dev"),
 num.group.sup=c(1), graph = FALSE)
 
-plot.MFA(res, choix="var",habillage='group',title="Cercle des corrélations")
+plot.MFA(res_MFA, axes = c(1, 2), choix="var",habillage='group',title="Cercle des corrélations")
+plot.MFA(res_MFA, axes = c(3, 4), choix="var",habillage='group',title="Cercle des corrélations")
 
 # contribution sur le plan D1, D2
-contrib <- res$ind$contrib[,1] + res$ind$contrib[,2]
+contrib <- res_MFA$ind$contrib[,1] + res_MFA$ind$contrib[,2]
 topN <- 15
 ind_top <- order(contrib, decreasing = TRUE)[1:topN]
 
-plot_contrib <- fviz_mfa_ind(res,
+plot_contrib_12 <- fviz_mfa_ind(res_MFA,
                      # Couleur en fonction de la contribution
                      col.ind = "contrib",
                      # Label pour les 10 individus les plus contributifs
                      label = "none", 
                      repel = TRUE,
                      gradient.cols = c("blue","red"),
-                     pointsize = 2.5)
+                     pointsize = 2.5,
+                     axes = c(1, 2))
+plot_contrib_12
 
-plot_contrib
-
-plot_partiel <- fviz_mfa_ind(res,
+# Points partiel des individus les plus contributeur sur le plan D1, D2
+plot_partiel_12 <- fviz_mfa_ind(res_MFA,
                      label = "none", 
                      partial = ind_top,
-                     repel = TRUE)
-plot_partiel
+                     repel = TRUE,
+                     axes = c(1, 2))
+plot_partiel_12
+
+# contribution sur le plan D3, D4
+contrib <- res_MFA$ind$contrib[,3] + res_MFA$ind$contrib[,4]
+topN <- 15
+ind_top <- order(contrib, decreasing = TRUE)[1:topN]
+
+plot_contrib_34 <- fviz_mfa_ind(res_MFA,
+                     # Couleur en fonction de la contribution
+                     col.ind = "contrib",
+                     # Label pour les 10 individus les plus contributifs
+                     label = "none", 
+                     repel = TRUE,
+                     gradient.cols = c("blue","red"),
+                     pointsize = 2.5,
+                     axes = c(3, 4))
+plot_contrib_34
+
+# Points partiel des individus les plus contributeur sur le plan D3, D4
+plot_partiel_34 <- fviz_mfa_ind(res_MFA,
+                     label = "none", 
+                     partial = ind_top,
+                     repel = TRUE,
+                     axes = c(3, 4))
+plot_partiel_34
 ```
+
+AFM en rajoutant le type de génotype en variable supplémentaire
+```{r}
+#Ajout de la colonne type par fusion de pheno avec le jeux de données "matrice_nirs_seeds_paneltotal_ready202307" contenant le type et les génotypes associés
+
+type <- read.table("data/NIRS_experiment/Graines/matrice_nirs_seeds_paneltotal_ready202307.csv", sep = ";", header = TRUE)
+
+#extraction des colonnes Type et Genotype
+type <- type |> 
+  select("Genotype","Type")
+type <- type |> 
+  rename(variety = Genotype)
+
+pheno_type <- pheno |> 
+  right_join(type) |> 
+  distinct(variety, .keep_all =TRUE)
+
+#Réalisation de l'AFM
+res_MFA_t <- MFA(pheno_type[,-1], group=c(14,9,1), type=c("s","s","n"),
+ncp=5, name.group=c("traits_physio","traits_dev", "type"),
+num.group.sup=c(3), graph = FALSE)
+
+fviz_mfa_ind(res_MFA_t,
+             # Couleur en fonction du Type
+             habillage = "Type",
+             palette = c("red", "black", "green", "blue"),
+             geom = "point",
+             title = "Graphe des individus – MFA",
+             pointsize = 2.5)
+```
+
