@@ -7,6 +7,7 @@ editor: visual
 ```{r}
 library(tidyverse)
 library(fda)
+library(RColorBrewer)
 ```
 
 ## Première ACP fonctionnelle sur les données
@@ -84,8 +85,11 @@ eval.fd(wavelength, res.fpca$harmonics) %>%
   mutate(wavelength = wavelength) %>% 
   pivot_longer(-wavelength, names_to = "component") %>% 
   ggplot(aes(x =  wavelength, y=  value)) +
-  geom_line(aes(group = component, color = component)) +
-  geom_line(aes(res.fpca$meanfd$coef))
+  geom_line(aes(group = component, color = component), linewidth = 1) +
+  scale_color_brewer(palette = "Dark2")
+
+
+  
 
 eval.fd(wavelength, res.fpca$harmonics) %>% 
   as_tibble() %>% 
@@ -94,5 +98,8 @@ eval.fd(wavelength, res.fpca$harmonics) %>%
   ggplot(aes(x =  wavelength, y=  value)) +
   geom_line(aes(group = component, color = component))
 
-
+plot(fdobj)
+lines(res.fpca$meanfd, lwd = 4, col = "red")
+plot(res.fpca$meanfd, lwd = 2, col = "red")
+lines(eval.fd(wavelength, res.fpca$harmonics))
 ```
