@@ -4,11 +4,19 @@ format: pdf
 editor: visual
 ---
 
+```{r}
+library(tidyverse)
+library(fda)
+```
+
 ## Première ACP fonctionnelle sur les données
 
 Le but ici n'est pas de réaliser une belle ACP fonctionnelle ou d'analyser les données, il s'agit juste de se familiariser avec la méthode.
 
 ```{r}
+#| echo: false
+
+
 rangeval <- c(min(wavelength), max(wavelength)) # définition de l'échelle (les longueurs d'ondes)
 nbasis <- 50 # Nombre de splines utilisées
 basisobj <- create.bspline.basis(rangeval = rangeval, nbasis = nbasis) # création d'une base d'objet
@@ -22,4 +30,69 @@ fdobj <- fdsmooth$fd
 # ACP fonctionnelle
 res.fpca <- pca.fd(fdobj)
 plot.pca.fd(res.fpca)
+```
+
+On réalise maintenant une ACP fonctionnelle sur nos données issues de corrections BLUP. On commence par les graines
+
+```{r}
+# assigner les lambdas
+  # afficher 2 courbes pour voir si il y a un décallage
+colnames(graines_BLUP) <- as.character(c("Genotype", 817:2763))
+colnames(graines_MEAN) <- as.character(c("Genotype", 817:2764))
+  # créer vecteur des longueurs d'ondes
+wavelength <- as.numeric(names(graines_BLUP[,-1]))
+
+# On vérifie que les valeurs sont bien assignées
+rbind(graines_MEAN[1, -1949], graines_BLUP[1, ]) %>%
+  mutate(group = c("MEAN", "BLUP")) %>%
+  pivot_longer(cols = -c(Genotype, group),
+               names_to = "wavelength",
+               values_to = "Abs") %>%
+  mutate(wavelength = as.numeric(wavelength)) %>% 
+  group_by(group) %>% 
+  ggplot(aes(x = wavelength, y = Abs, col = group))+
+  geom_line(aes(group = group))
+  
+# les deux courbes correspondent, on a bien les bonnes longueurs d'ondes
+# si on garde les longueurs d'onde 818:2764 pour le dataset graines_BLUP (et donc que l'on enlève la première longueur d'onde à graines_MEAN), on observe un décallage des courbes
+
+# On a les bonnes longueurs d'ondes, on peut maintenant réaliser une ACP fonctionnelle
+
+rangeval <- c(min(wavelength), max(wavelength)) 
+nbasis <- 50 # Nombre de splines utilisées
+basisobj <- create.bspline.basis(rangeval = rangeval, nbasis = nbasis) # création d'une base d'objet
+
+# convertir les données discrètes en fd (estimation par régression sur la base)
+fdsmooth <- smooth.basis(argvals = wavelength, y = t(as.matrix(graines_BLUP[-1])), fdParobj = basisobj)
+# pour y les lignes doivent être les valeurs discrètes et les colonnes les individus
+
+fdobj <- fdsmooth$fd
+
+# ACP fonctionnelle
+res.fpca <- pca.fd(fdobj, nharm = 2)
+plot.pca.fd(res.fpca, pointplot = F)
+
+# res.fpca$harmonics$coefs
+# 
+# 
+# res.fpca$meanfd$coefs
+
+plot(res.fpca$scores, type = "p")
+
+eval.fd(wavelength, res.fpca$harmonics) %>% 
+  as_tibble() %>% 
+  mutate(wavelength = wavelength) %>% 
+  pivot_longer(-wavelength, names_to = "component") %>% 
+  ggplot(aes(x =  wavelength, y=  value)) +
+  geom_line(aes(group = component, color = component)) +
+  geom_line(aes(res.fpca$meanfd$coef))
+
+eval.fd(wavelength, res.fpca$harmonics) %>% 
+  as_tibble() %>% 
+  mutate(wavelength = wavelength, mean = eval.fd(wavelength, res.fpca$meanfd)) %>% 
+  pivot_longer(-wavelength, names_to = "component") %>% 
+  ggplot(aes(x =  wavelength, y=  value)) +
+  geom_line(aes(group = component, color = component))
+
+
 ```

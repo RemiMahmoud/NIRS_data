@@ -8,6 +8,9 @@ editor: visual
 ```{r}
 library(readr)
 library(tidyverse)
+library(FactoMineR)
+library(patchwork)
+library(vegan)
 rm(list = ls())
 ```
 
@@ -132,8 +135,7 @@ p1 <- graines_plot %>% group_by(Type, Wavenumber) %>%
 Contrairement à la thèse, on ne possède pas dans les jeux de données, les connaissance sur les différents cluster génomique. Les ACP ne seront donc pas colorées
 
 ```{r}
-library(FactoMineR)
-library(patchwork)
+
 
 PCA.s1 <- PCA(graines_MEAN, quali.sup = 1, graph = F)
 PCA.s3 <- PCA(graines_BLUP, quali.sup = 1, graph = F)
@@ -215,5 +217,18 @@ H.l1 <- (S.l1 %*% t(S.l1))/Nw.l1
 H.l2 <- (S.l2 %*% t(S.l2))/Nw.l2
 H.l3 <- (S.l3 %*% t(S.l3))/Nw.l3
 
+cor(H.l2, H.l3)
 
+dim(H.l3)
+
+mantel()
+```
+
+Affichage des corrélations entre matrices
+
+```{r}
+
+library(corrplot)
+cor(H.l1, H.l2)
+corrplot(mcor, type="upper", order="hclust", tl.col="black", tl.srt=45)
 ```
