@@ -118,6 +118,7 @@ plot(res.fpca$meanfd, lwd = 2, col = "red")
 lines(eval.fd(wavelength, res.fpca$harmonics))
 ```
 
+
 On réalise une AFM sur les données phénotypiques. Le but est d'extraire des cluster phénotypiques avec une Classification Ascendante Hiérarchique.
 
 ```{r}
@@ -203,3 +204,4 @@ df2 %>% right_join(df1, by = 'type') %>% group_by(clust) %>%
 
 
 ```
+
