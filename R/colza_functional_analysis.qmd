@@ -208,6 +208,6 @@ df2 %>% right_join(df1, by = 'type') %>% group_by(clust) %>%
 ## Regression fonctionnelle
 
 
-code thibaut
+code thibault
 
 
