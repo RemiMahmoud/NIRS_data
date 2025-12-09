@@ -202,7 +202,12 @@ df2 %>% right_join(df1, by = 'type') %>% group_by(clust) %>%
   geom_hline(yintercept = 0, linetype = "dashed") +
   geom_vline(xintercept = 0, linetype = "dashed")
 
-
+2
 ```
 
 ## Regression fonctionnelle
+
+
+code thibaut
+
+
