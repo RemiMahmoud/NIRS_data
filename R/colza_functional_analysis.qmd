@@ -103,3 +103,5 @@ lines(res.fpca$meanfd, lwd = 4, col = "red")
 plot(res.fpca$meanfd, lwd = 2, col = "red")
 lines(eval.fd(wavelength, res.fpca$harmonics))
 ```
+
+## Regression fonctionelle
