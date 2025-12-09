@@ -5,7 +5,7 @@ format: html
 editor: visual
 ---
 
-```{r}
+```{r library}
 library(readr)
 library(tidyverse)
 library(FactoMineR)
@@ -18,7 +18,7 @@ rm(list = ls())
 
 ### Graines
 
-```{r}
+```{r importation_graines}
 # Importation des données
 graines <- read.table("data/NIRS_experiment/Graines/matrice_nirs_seeds_paneltotal_ready202307.csv", sep = ";", dec = ",", header = T)
 
@@ -71,7 +71,7 @@ graines_BLUP$X <- as.factor(graines_BLUP$X)
 
 ### Feuilles sèches
 
-```{r}
+```{r importation_feuilles_seches}
 # importation du jeu de donnée brut (sans prétraitement)
 feuilles_s <- read.table("data/NIRS_experiment/Feuilles_seches/nirs_powder_all_pretreat3.csv", header = T, stringsAsFactors = T, sep = ";", dec = ".") 
 
@@ -107,16 +107,16 @@ graines_plot %>% group_by(Genotype, Rep) %>%
 
 # Affichage de tous les spectre en colorant par type  
 
-graines_plot %>% group_by(Type, Genotype) %>% 
-  ggplot() + 
-  aes(x = Wavenumber, y = Absorbance, col = Type) +
-  geom_line(aes(group = Type), alpha = 0.3) + 
-  stat_summary(
-    aes(group = Type),
-    fun = mean,
-    geom = "line",
-    size = 1.2
-  )
+# graines_plot %>% group_by(Type, Genotype) %>% 
+#   ggplot() + 
+#   aes(x = Wavenumber, y = Absorbance, col = Type) +
+#   geom_line(aes(group = Type), alpha = 0.3) + 
+#   stat_summary(
+#     aes(group = Type),
+#     fun = mean,
+#     geom = "line",
+#     size = 1.2
+#   )
 
 # maintenant je veux ajouter une courbe moyenne pour chaque Type
 
@@ -155,18 +155,17 @@ plot.l3 <- plot.PCA(PCA.l3, choix = "ind", label = "none", invisible = "quali")
 On a une valeur étrange dans les *leaf_1*. On va afficher les spectres pour vérifier
 
 ```{r}
-# changement des noms de colonnes
-colnames(feuilles_s_MEAN) <- as.character(c("Genotype", 817:2764))
 
 # Inversion du tableau de donnée
 feuilles_s_MEAN_plot <- feuilles_s_MEAN %>% pivot_longer(-c(1), 
                                          names_to = "Wavenumber", 
                                          values_to = "Absorbance")
+
 # transformation des longueur d'onde en numérique
 feuilles_s_MEAN_plot$Wavenumber <- as.numeric(feuilles_s_MEAN_plot$Wavenumber)
 
 # affichage des spectres
-plot1 <- feuilles_s_MEAN_plot %>% group_by(Genotype) %>% 
+feuilles_s_MEAN_plot %>%  group_by(Genotype) %>% 
   ggplot() + 
   aes(x = Wavenumber, y = Absorbance) +
   geom_line(aes(group = Genotype)) 
@@ -176,6 +175,12 @@ feuilles_s_MEAN_plot %>% filter(Absorbance< (-0.02)) %>% distinct(Genotype)
 
 # On veut récupérer le type de génotype. 
 graines %>% filter(Genotype == "NAVIG_215") %>% distinct(Type)
+
+# Affichage du spectre de l'individu
+feuilles_s_MEAN_plot %>% filter(Genotype == "NAVIG_215") %>%  group_by(Genotype) %>% 
+  ggplot() + 
+  aes(x = Wavenumber, y = Absorbance) +
+  geom_line(aes(group = Genotype)) 
 
 # on retire cet individu du jeu de donnée. On suppose que la mesure de spectro a foiré
 feuilles_s_MEAN_215less <- feuilles_s_MEAN %>% filter(Genotype != "NAVIG_215")
@@ -226,7 +231,7 @@ mantel()
 
 Affichage des corrélations entre matrices
 
-```{r}
+```{r corrélation}
 
 library(corrplot)
 cor(H.l1, H.l2)

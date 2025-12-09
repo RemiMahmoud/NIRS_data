@@ -150,7 +150,7 @@ lines(wavelength, spl, col = "red")
 
 ```
 
-Test de l'erreur de prédiction avec l'utilisation de fonctions splines
+##Test de l'erreur de prédiction avec l'utilisation de fonctions splines
 
 ```{r}
 require(splines)

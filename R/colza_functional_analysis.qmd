@@ -4,18 +4,22 @@ format: pdf
 editor: visual
 ---
 
-```{r}
+```{r library}
 library(tidyverse)
 library(fda)
 library(RColorBrewer)
+library(patchwork)
+library(fda)
+library(FactoMineR)
 ```
 
 ## Première ACP fonctionnelle sur les données
 
 Le but ici n'est pas de réaliser une belle ACP fonctionnelle ou d'analyser les données, il s'agit juste de se familiariser avec la méthode.
 
-```{r}
+```{r premiere_ACP}
 #| echo: false
+#| eval: false
 
 
 rangeval <- c(min(wavelength), max(wavelength)) # définition de l'échelle (les longueurs d'ondes)
@@ -36,28 +40,9 @@ plot.pca.fd(res.fpca)
 On réalise maintenant une ACP fonctionnelle sur nos données issues de corrections BLUP. On commence par les graines
 
 ```{r}
-# assigner les lambdas
-  # afficher 2 courbes pour voir si il y a un décallage
-colnames(graines_BLUP) <- as.character(c("Genotype", 817:2763))
-colnames(graines_MEAN) <- as.character(c("Genotype", 817:2764))
-  # créer vecteur des longueurs d'ondes
+
+# créer vecteur des longueurs d'ondes
 wavelength <- as.numeric(names(graines_BLUP[,-1]))
-
-# On vérifie que les valeurs sont bien assignées
-rbind(graines_MEAN[1, -1949], graines_BLUP[1, ]) %>%
-  mutate(group = c("MEAN", "BLUP")) %>%
-  pivot_longer(cols = -c(Genotype, group),
-               names_to = "wavelength",
-               values_to = "Abs") %>%
-  mutate(wavelength = as.numeric(wavelength)) %>% 
-  group_by(group) %>% 
-  ggplot(aes(x = wavelength, y = Abs, col = group))+
-  geom_line(aes(group = group))
-  
-# les deux courbes correspondent, on a bien les bonnes longueurs d'ondes
-# si on garde les longueurs d'onde 818:2764 pour le dataset graines_BLUP (et donc que l'on enlève la première longueur d'onde à graines_MEAN), on observe un décallage des courbes
-
-# On a les bonnes longueurs d'ondes, on peut maintenant réaliser une ACP fonctionnelle
 
 rangeval <- c(min(wavelength), max(wavelength)) 
 nbasis <- 50 # Nombre de splines utilisées
@@ -70,16 +55,45 @@ fdsmooth <- smooth.basis(argvals = wavelength, y = t(as.matrix(graines_BLUP[-1])
 fdobj <- fdsmooth$fd
 
 # ACP fonctionnelle
-res.fpca <- pca.fd(fdobj, nharm = 2)
+res.fpca <- pca.fd(fdobj, harmfdPar = fdPar(fdobj = fdobj, lambda = 10))
 plot.pca.fd(res.fpca, pointplot = F)
 
 # res.fpca$harmonics$coefs
-# 
+# Les harmonics sont les dimensions. Une harmonique = une fonction
 # 
 # res.fpca$meanfd$coefs
+# coefficients de la base (ici splines) pour la courbe moyenne
 
+# Affichage du nuage des individus
 plot(res.fpca$scores, type = "p")
 
+# On essaye de lisser les courbes pour lisser les tendances
+res.fpca <- pca.fd(fdobj, harmfdPar = fdPar(fdobj = basisobj,lambda = 1e6))
+p1 <- eval.fd(wavelength, res.fpca$harmonics) %>% 
+  as_tibble() %>% 
+  mutate(wavelength = wavelength) %>% 
+  pivot_longer(-wavelength, names_to = "component") %>% 
+  ggplot(aes(x =  wavelength, y=  value)) +
+  geom_line(aes(group = component, color = component), linewidth = 1) +
+  scale_color_brewer(palette = "Dark2")+
+  ggtitle("Avec lissage")+
+  theme(plot.title  = element_text(hjust = 0.5))
+
+res.fpca <- pca.fd(fdobj)
+p2 <- eval.fd(wavelength, res.fpca$harmonics) %>% 
+  as_tibble() %>% 
+  mutate(wavelength = wavelength) %>% 
+  pivot_longer(-wavelength, names_to = "component") %>% 
+  ggplot(aes(x =  wavelength, y=  value)) +
+  geom_line(aes(group = component, color = component), linewidth = 1) +
+  scale_color_brewer(palette = "Dark2")+
+  ggtitle("Sans lissage")+
+  theme(plot.title = element_text(hjust = 0.5))
+  
+p1 / p2
+
+
+# Affichage des 2 premières dimensions
 eval.fd(wavelength, res.fpca$harmonics) %>% 
   as_tibble() %>% 
   mutate(wavelength = wavelength) %>% 
@@ -88,18 +102,104 @@ eval.fd(wavelength, res.fpca$harmonics) %>%
   geom_line(aes(group = component, color = component), linewidth = 1) +
   scale_color_brewer(palette = "Dark2")
 
-
-  
-
+# Affichage des 2 premières dimensions avec la moyenne
 eval.fd(wavelength, res.fpca$harmonics) %>% 
   as_tibble() %>% 
   mutate(wavelength = wavelength, mean = eval.fd(wavelength, res.fpca$meanfd)) %>% 
   pivot_longer(-wavelength, names_to = "component") %>% 
   ggplot(aes(x =  wavelength, y=  value)) +
-  geom_line(aes(group = component, color = component))
+  geom_line(aes(group = component, color = component), linewidth = 1) +
+  scale_color_brewer(palette = "Dark2")
 
+# Affichage de tous les spectres
 plot(fdobj)
-lines(res.fpca$meanfd, lwd = 4, col = "red")
+lines(res.fpca$meanfd, lwd = 1, col = "red")
 plot(res.fpca$meanfd, lwd = 2, col = "red")
 lines(eval.fd(wavelength, res.fpca$harmonics))
+```
+
+On réalise une AFM sur les données phénotypiques. Le but est d'extraire des cluster phénotypiques avec une Classification Ascendante Hiérarchique.
+
+```{r}
+# AFM
+res_MFA <- MFA(pheno, group=c(1,14,9), type=c("n","s","s"),
+ncp=5, name.group=c("Variété", "traits_physio","traits_dev"),
+num.group.sup=c(1), graph = FALSE)
+
+# Affichage des variables
+plot.MFA(res_MFA, choix = "var")
+
+# Classification sur les individus
+res.HCPC <- HCPC(res_MFA, nb.clust = -1)
+pheno_clust <- res.HCPC$data.clust
+
+# On réalise une AFM sur le jeu de donnée de départ en ajoutant le cluster en supplémentaire
+res_MFA <- MFA(res.HCPC$data.clust, group=c(1,14,9,1), type=c("n","s","s","n"),
+ncp=5, name.group=c("Variété", "traits_physio","traits_dev","cluster"),
+num.group.sup=c(1,4), graph = FALSE)
+
+# On affiche les individus colorés en fonction du cluster
+plot.MFA(res_MFA, choix = "ind",
+         axes = c(1,2), 
+         habillage = "clust", 
+         invisible = "quali.sup",
+         label = "none")
+```
+
+Avec les cluster obtenus sur les phénotypes, on fait le lien entre les dataset
+
+```{r}
+colnames(graines_MEAN) <- as.character(c("Genotype", 817:2764))
+
+wavelength <- as.numeric(names(graines_MEAN[,-1]))
+
+
+rangeval <- c(min(wavelength), max(wavelength)) 
+nbasis <- 50 # Nombre de splines utilisées
+basisobj <- create.bspline.basis(rangeval = rangeval, nbasis = nbasis) # création d'une base d'objet
+
+# convertir les données discrètes en fd (estimation par régression sur la base)
+fdsmooth <- smooth.basis(argvals = wavelength, y = t(as.matrix(graines_MEAN[-1])), fdParobj = basisobj)
+# pour y les lignes doivent être les valeurs discrètes et les colonnes les individus
+
+fdobj <- fdsmooth$fd
+
+# ACP fonctionnelle
+res.fpca <- pca.fd(fdobj, harmfdPar = fdPar(fdobj = fdobj, lambda = 10))
+
+var_clust <- data.frame(Genotype = pheno_clust$variety,
+                        cluster = pheno_clust$clust)
+
+plot(res.fpca$scores)
+
+as.data.frame(res.fpca$scores) %>% 
+  mutate(Genotype = graines_MEAN$Genotype) %>% 
+  left_join(var_clust, by = "Genotype") %>%
+  group_by(cluster) %>% 
+  ggplot() +
+  aes(x = V1, y = V2, col = cluster) +
+  geom_point()+
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  geom_vline(xintercept = 0, linetype = "dashed")
+```
+
+```{r join_test}
+df1 <- data.frame(type = factor(c(1:12)),
+                  clust = factor(sample(c(1,2,3), size = 12, replace = T)))
+summary(df1)
+
+df2 <- data.frame(type = factor(c(1:14)),
+                  coordx = rnorm(14, 0, 2),
+                  coordy = rnorm(14, 0, 10))
+
+summary(df1) ; summary(df2)
+
+df2 %>% right_join(df1, by = 'type') %>% group_by(clust) %>% 
+  ggplot() +
+  aes(x = coordx, y = coordy, col = clust) +
+  geom_point() +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  geom_vline(xintercept = 0, linetype = "dashed")
+
+
 ```
