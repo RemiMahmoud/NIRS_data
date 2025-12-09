@@ -105,3 +105,65 @@ lines(eval.fd(wavelength, res.fpca$harmonics))
 ```
 
 ## Regression fonctionelle
+
+Importation des données NIRS
+
+```{r}
+feuille_seche <- read.table("data/NIRS_experiment/Feuilles_seches/nirs_powder_MEAN.csv", sep = ",", header = TRUE)
+
+#Changement des noms de colonnes
+colnames(feuille_seche) <- as.character(c("Genotype", 817:2764))
+
+#Suppression de l'individu abhérant détecté dans le script these_results
+feuille_seche <- feuille_seche %>% filter(Genotype != "NAVIG_215")
+```
+
+Importation des phénotypes
+
+```{r}
+pheno <- read.table("data/Pheno/Vigueur_precoce/df_BLUES_VP_ready_GWAS.csv", sep = ";", header = TRUE)
+pheno <- pheno[,-1]
+
+cols <- c("LA","TDW","ADW","RDW","LWR","LAR","SLA","SR","SNQ","LASNQ","TNQ",
+          "SNU","NUtE_TOT","NUtE_AER","Sp_L1_L4","Sp_L1_L2","Sp_L2_L3",
+          "Sp_L3_L4","SCA")
+
+pheno <- pheno |> 
+  mutate(across(all_of(cols), as.numeric))
+
+#Changement des noms de colonnes
+pheno <- pheno |> 
+  rename(Genotype = variety)
+
+#Suppression de l'individu abhérant détecté dans le script these_results
+pheno <- pheno %>% filter(Genotype != "NAVIG_215")
+```
+
+Transformation du jeu de données pour réaliser des graphiques
+
+```{r}
+#Passage des longueures d'ondes et absorbances en colonnes
+feuille_seche_plot <- feuille_seche |> 
+  pivot_longer(-c(1), 
+               names_to = "Wavenumber", 
+               values_to = "Absorbance")
+
+#Transformation des longeures d'ondes en numérique
+feuille_seche_plot$Wavenumber <- as.numeric(feuille_seche_plot$Wavenumber)
+```
+
+Réalisation des graphiques
+
+```{r}
+feuille_seche_plot |> 
+  group_by(Genotype) |> 
+  ggplot() + 
+  aes(x = Wavenumber, y = Absorbance) +
+  geom_line(alpha = 0.3)
+```
+
+Réalisation du modèle
+
+```{r}
+
+```
