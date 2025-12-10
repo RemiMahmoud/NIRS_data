@@ -107,6 +107,8 @@ rbind(graines_MEAN[1, -2], graines_BLUP[1, ]) %>%
   group_by(group) %>% 
   ggplot(aes(x = wavelength, y = Abs, col = group))+
   geom_line(aes(group = group))
+
+colnames(graines_BLUP) <- c("Genotype", 817:2763)
 ```
 
 On voit clairement un décallage entre les 2 courbes. On suppose donc que dans graines_BLUP, il manque la dernière longueur d'onde. C'est ce qui a été modifié plus haut.
