@@ -17,6 +17,9 @@ On commence par importer les données brutes.
 ```{r}
 graines <- read.table("data/NIRS_experiment/Graines/matrice_nirs_seeds_paneltotal_ready202307.csv", sep = ";", dec = ",", header = T)
 
+# Ce dataset semble identique au précédent, sans colonnes explicatives supplémentaires
+# graines_test <- read.table("data/NIRS_experiment/Graines/NIRS_seeds.csv", sep = ",", dec = ".", header = T)
+
 dim(graines %>% distinct(Genotype)) # Il y a 210 génotype
 
 # gestion des classe des variables
@@ -108,7 +111,7 @@ rbind(graines_MEAN[1, -2], graines_BLUP[1, ]) %>%
 
 On voit clairement un décallage entre les 2 courbes. On suppose donc que dans graines_BLUP, il manque la dernière longueur d'onde. C'est ce qui a été modifié plus haut.
 
-## Feuilles 
+## Feuilles
 
 On importe les jeux de données bruts et avec correction. On importe pour le moment seulement les dataset des feuilles sèches.
 
