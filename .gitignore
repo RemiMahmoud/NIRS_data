@@ -4,3 +4,5 @@
 .Ruserdata
 *NIRS_data*
 *.pptx
+data/NIRS_experiment/
+.gitignore
