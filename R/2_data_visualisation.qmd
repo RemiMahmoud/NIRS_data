@@ -4,7 +4,6 @@ format: pdf
 editor: visual
 ---
 
-
 ```{r setup, echo = FALSE, message = FALSE, warning = FALSE}
 library(dplyr)
 library(readr)
@@ -22,7 +21,7 @@ knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
 ```
 
 ```{r importation data}
-#| 
+
 data_NIRS_raw <- read_csv2("data/NIRS_data/Full_dataset.csv")
 fun_convert_num = function(x){
   x = stringr::str_replace(x, ',', '.' )
@@ -61,12 +60,11 @@ data_plot = data_NIRS %>%
 wavelength <- data_NIRS %>% filter(Sample_ID == "15_N1S1_03-19_Res_1") %>% arrange(-Wavenumber) %>%  select(Wavenumber) %>% as.matrix() %>% as.vector()
 ```
 
-
 ## Missing data
 
 ```{r missing data}
 sum(is.na(data_NIRS_raw))
-# Aucune données manquante
+# Aucune données manquante. Attention, en pivotant les données (ou en les modifiant légèrement), on peut faire disparaître des données manquante
 ```
 
 ## Data repartition
@@ -123,18 +121,65 @@ plot6
 # On décide d'approcher la courbe réelle discrétisée via des fonctions splines
 library(splines)
 snv_x <- t(scale(t(data_NIRS_raw[,-c(1:14)]))) # on recrée une matrice des ondes centrées réduite
-# En voulant reprendre les data.frame, déja transformé, j'avais des problèles de classes d'objet... d'ou ce nouveau snv_x
+# En voulant reprendre les data.frame, déja transformé, j'avais des problèmes de classes d'objet... d'ou ce nouveau snv_x
 
 # nombre de splines 
-n_splines = 50
+n_splines = 10
 
 B <- bs(wavelength, df = n_splines) # Création des splines
-# matplot(wavelength, B, type = "l", col = "blue", lty = 1) # affichage des différentes fonctions
+matplot(wavelength, B, type = "l", col = "blue", lty = 1) # affichage des différentes fonctions
 
 mod <- lm(x ~., data = data.frame(x = snv_x[1,], B)) # modèle linéaire entre la première courbe et les splines
 
 alpha <- coef(mod)[-1]
 spl <- B%*% alpha + coef(mod)[1] # création de la nouvelle courbe
+
 plot(wavelength, snv_x[1,], type = "l", col = "blue")
-lines(wavelength, spl, col = "red")
+lines(wavelength, spl, col = "red") 
+
+B_w <- B
+
+for(i in length(alpha)){
+  B_w[,i] <- -B_w[,i] * alpha[i]
+}
+
+matplot(wavelength, B_w, type = "l", lty = 1) # affichage des différentes
+lines(wavelength, snv_x[1,], type = "l", col = "blue")
+lines(wavelength, spl, col = "red") 
+
+
+```
+
+##Test de l'erreur de prédiction avec l'utilisation de fonctions splines
+
+```{r}
+require(splines)
+#Création d'une matrice contenant tous les spectres
+snv_x <- t(scale(t(data_NIRS_raw[,-c(1:14)])))
+
+#Définition des noeuds (ici 50 noeuds entre le min et le max de wavelength)
+knots = seq(min(wavelength),max(wavelength),length=50)
+
+# Création des splines de base
+base <- bs(wavelength, knots=knots[-c(1,length(knots))])
+
+#Création des splines pour tous spectres et extraction des coefficients
+res <- apply(snv_x[1:2427, ], 1, function(row) {
+  #création d'un data.frame en fusionnant une ligne (=1 spectre) de snv_x et les 
+  #B splines
+  df <- cbind.data.frame(x = row, base)
+  #Modèle linéaire entre un spectre et les B splines
+  mod <- lm(x ~ ., data = df)
+  #Extraction des coefficients de la fonction spline
+  coef(mod)
+})
+
+#Fusion de "res" avec une variable explicative ici "N content"
+res <- t(res)
+res <- cbind.data.frame(data_NIRS_raw[1:2427, 9], res[,-1])
+
+#Création du modèle linéaire
+mod <- lm(`N.content...DM.`~., data = data.frame(res))
+F_mod <- summary(mod)$fstatistic[[1]]
+F_mod
 ```

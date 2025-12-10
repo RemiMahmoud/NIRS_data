@@ -1,0 +1,239 @@
+---
+title: "Resultat de la thèse"
+subtitle: "Première analyse du jeu de données pour reproduire les résultats de la thèse"
+format: html
+editor: visual
+---
+
+```{r library}
+library(readr)
+library(tidyverse)
+library(FactoMineR)
+library(patchwork)
+library(vegan)
+rm(list = ls())
+```
+
+## Importation des données
+
+### Graines
+
+```{r importation_graines}
+# Importation des données
+graines <- read.table("data/NIRS_experiment/Graines/matrice_nirs_seeds_paneltotal_ready202307.csv", sep = ";", dec = ",", header = T)
+
+dim(graines %>% distinct(Genotype)) # Il y a 210 génotype
+
+# summary(graines[,1:10])
+
+# gestion des classe des variables
+graines$X <- as.factor(graines$X)
+graines$Genotype <- as.factor(graines$Genotype)
+graines$Rep <- as.factor(graines$Rep)
+graines$Type <- as.factor(graines$Type)
+graines[,-c(1:4)] <- graines[,-c(1:4)] %>% mutate(across(everything(), as.numeric))
+
+# Changement des noms de colonnes (pour le pivot_longer)
+colnames(graines) <- as.character(c("X", "Genotype", "Rep", "Type", 800:2781))
+
+# On va centrer et réduire les spectres
+snv <- t(scale(t(graines[,-c(1:4)])))
+snv <- as.data.frame(snv)
+snv <- cbind(graines[,c(1:4)], snv)
+
+# Création d'un jeu de données que l'on peut plot
+graines_plot <- snv %>% pivot_longer(-c(1:4), 
+                                         names_to = "Wavenumber", 
+                                         values_to = "Absorbance")
+graines_plot$Wavenumber <- as.numeric(graines_plot$Wavenumber)
+
+# Downsampling du dataset pour des plots plus rapides
+id_subsample <- graines_plot %>% 
+  distinct(Type, Genotype, Rep) %>% 
+  slice_sample(prop = .1, by = c(Type, Rep) ) %>% 
+  select(Genotype)
+
+graines_plot_subsample <- graines_plot %>% 
+  inner_join(id_subsample)
+
+
+
+graines_plot %>% distinct(Type, Genotype) %>% filter(Type == "Swede")
+
+
+# Correction 1
+graines_MEAN <- read.table("data/NIRS_experiment/Graines/nirs_seeds_mean.csv", sep = ",", dec = ".", header = T, stringsAsFactors = T)
+
+# Correction 3
+graines_BLUP <- read.table("data/NIRS_experiment/Graines/nirs_seeds_BLUP.csv", sep = ",", dec = ".", header = T)
+graines_BLUP$X <- as.factor(graines_BLUP$X)
+```
+
+### Feuilles sèches
+
+```{r importation_feuilles_seches}
+# importation du jeu de donnée brut (sans prétraitement)
+feuilles_s <- read.table("data/NIRS_experiment/Feuilles_seches/nirs_powder_all_pretreat3.csv", header = T, stringsAsFactors = T, sep = ";", dec = ".") 
+
+# Dataset avec "all_pretreat" ==> weird
+dim(feuilles_s %>% distinct(Genotype)) # Il y a 246 Génotype différents
+
+
+# Correction 1
+feuilles_s_MEAN <- read.table("data/NIRS_experiment/Feuilles_seches/nirs_powder_MEAN.csv", header = T, stringsAsFactors = T, sep = ",", dec = ".")
+
+# Correction 2
+feuilles_s_BLUE <- read.table("data/NIRS_experiment/Feuilles_seches/nirs_powder_BLUE_FINAL.csv", header = T, stringsAsFactors = T, sep = ",", dec = ".")
+feuilles_s_BLUE$X <- as.factor(feuilles_s_BLUE$X)
+
+# Correction 3
+feuilles_s_BLUP <- read.table("data/NIRS_experiment/Feuilles_seches/nirs_powder_BLUP.csv", header = T, stringsAsFactors = T, sep = ",", dec = ".")
+feuilles_s_BLUP$X <- as.factor(feuilles_s_BLUP$X)
+```
+
+## Visualisation des spectres
+
+### Graines
+
+```{r}
+
+
+# plot des 3 mesures sur une graine (génotype NAVIG_105)
+graines_plot %>% group_by(Genotype, Rep) %>% 
+  filter(Genotype == "NAVIG_105") %>% 
+  ggplot() + 
+  aes(x = Wavenumber, y = Absorbance, col = Rep) +
+  geom_line(aes(group = Rep)) 
+
+# Affichage de tous les spectre en colorant par type  
+
+# graines_plot %>% group_by(Type, Genotype) %>% 
+#   ggplot() + 
+#   aes(x = Wavenumber, y = Absorbance, col = Type) +
+#   geom_line(aes(group = Type), alpha = 0.3) + 
+#   stat_summary(
+#     aes(group = Type),
+#     fun = mean,
+#     geom = "line",
+#     size = 1.2
+#   )
+
+# maintenant je veux ajouter une courbe moyenne pour chaque Type
+
+p1 <- graines_plot %>% group_by(Type, Wavenumber) %>% 
+  summarise(mean = mean(Absorbance), .groups = "drop_last") %>% 
+  ggplot() +
+  aes(x = Wavenumber, y = mean, col = Type) +
+  geom_line(aes(group = Type))
+
+```
+
+## Analyse des données
+
+### ACP
+
+Contrairement à la thèse, on ne possède pas dans les jeux de données, les connaissance sur les différents cluster génomique. Les ACP ne seront donc pas colorées
+
+```{r}
+
+
+PCA.s1 <- PCA(graines_MEAN, quali.sup = 1, graph = F)
+PCA.s3 <- PCA(graines_BLUP, quali.sup = 1, graph = F)
+PCA.l1 <- PCA(feuilles_s_MEAN, quali.sup = 1, graph = F)
+PCA.l2 <- PCA(feuilles_s_BLUE, quali.sup = 1, graph = F)
+PCA.l3 <- PCA(feuilles_s_BLUP, quali.sup = 1, graph = F)
+
+plot.s1 <- plot.PCA(PCA.s1, choix = "ind", label = "none", invisible = "quali")
+plot.s3 <- plot.PCA(PCA.s3, choix = "ind", label = "none", invisible = "quali")
+plot.l1 <- plot.PCA(PCA.l1, choix = "ind", label = "none", invisible = "quali")
+plot.l2 <- plot.PCA(PCA.l2, choix = "ind", label = "none", invisible = "quali")
+plot.l3 <- plot.PCA(PCA.l3, choix = "ind", label = "none", invisible = "quali")
+
+(plot.s1 + plot.s3) / (plot.l1 + plot.l2 + plot.l3)
+```
+
+On a une valeur étrange dans les *leaf_1*. On va afficher les spectres pour vérifier
+
+```{r}
+
+# Inversion du tableau de donnée
+feuilles_s_MEAN_plot <- feuilles_s_MEAN %>% pivot_longer(-c(1), 
+                                         names_to = "Wavenumber", 
+                                         values_to = "Absorbance")
+
+# transformation des longueur d'onde en numérique
+feuilles_s_MEAN_plot$Wavenumber <- as.numeric(feuilles_s_MEAN_plot$Wavenumber)
+
+# affichage des spectres
+feuilles_s_MEAN_plot %>%  group_by(Genotype) %>% 
+  ggplot() + 
+  aes(x = Wavenumber, y = Absorbance) +
+  geom_line(aes(group = Genotype)) 
+
+# on va chercher la valeur abberante
+feuilles_s_MEAN_plot %>% filter(Absorbance< (-0.02)) %>% distinct(Genotype)
+
+# On veut récupérer le type de génotype. 
+graines %>% filter(Genotype == "NAVIG_215") %>% distinct(Type)
+
+# Affichage du spectre de l'individu
+feuilles_s_MEAN_plot %>% filter(Genotype == "NAVIG_215") %>%  group_by(Genotype) %>% 
+  ggplot() + 
+  aes(x = Wavenumber, y = Absorbance) +
+  geom_line(aes(group = Genotype)) 
+
+# on retire cet individu du jeu de donnée. On suppose que la mesure de spectro a foiré
+feuilles_s_MEAN_215less <- feuilles_s_MEAN %>% filter(Genotype != "NAVIG_215")
+
+# On recommence la PCA et on les affiche à nouveau
+PCA.l1 <- PCA(feuilles_s_MEAN_215less, quali.sup = 1, graph = F)
+plot.l1 <- plot.PCA(PCA.l1, choix = "ind", label = "none", invisible = "quali")
+(plot.s1 + plot.s3) / (plot.l1 + plot.l2 + plot.l3)
+```
+
+### Matrice d'héritabilité génomique
+
+```{r}
+
+```
+
+### Matrice d'apparentement spectral
+
+```{r}
+S.s1 <- as.matrix(graines_MEAN[,-1])
+Nw.s1 <- dim(S.s1)[2]
+
+S.s3 <- as.matrix(graines_BLUP[,-1])
+Nw.s3 <- dim(S.s3)[2]
+
+S.l1 <- as.matrix(feuilles_s_MEAN[,-1])
+Nw.l1 <- dim(S.l1)[2]
+
+S.l2 <- as.matrix(feuilles_s_BLUE[,-1])
+Nw.l2 <- dim(S.l2)[2]
+
+S.l3 <- as.matrix(feuilles_s_BLUP[,-1])
+Nw.l3 <- dim(S.l3)[2]
+
+
+H.s1 <- (S.s1 %*% t(S.s1))/Nw.s1
+H.s3 <- (S.s3 %*% t(S.s3))/Nw.s3
+H.l1 <- (S.l1 %*% t(S.l1))/Nw.l1
+H.l2 <- (S.l2 %*% t(S.l2))/Nw.l2
+H.l3 <- (S.l3 %*% t(S.l3))/Nw.l3
+
+cor(H.l2, H.l3)
+
+dim(H.l3)
+
+mantel()
+```
+
+Affichage des corrélations entre matrices
+
+```{r corrélation}
+
+library(corrplot)
+cor(H.l1, H.l2)
+corrplot(mcor, type="upper", order="hclust", tl.col="black", tl.srt=45)
+```
