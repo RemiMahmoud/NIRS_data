@@ -247,8 +247,55 @@ NIRS_pheno <- pheno |>
   distinct(Genotype, .keep_all =TRUE)
 ```
 
-Réalisation du modèle
+#### Réalisation du modèle Linear Scalar-on-Function Regression (LSFR)
+
+$$Y = \beta_0 + \int_{t} X\left(t\right)\beta\left(t\right)\mathrm{d}t + \epsilon$$
+
+1.  Création des fonctions de bases pour les spectres $X(t)$
 
 ```{r}
-model <- fRegress.numeric(LA~817, method="model")
+#Nombre de fonction de base
+nbases = 50
+
+#Création des splines
+abs_bases <- create.bspline.basis(c(817,2764), nbases)
+
+#Représentation des splines
+plot(abs_bases)
+```
+
+2.  Création des fonctions des spectres
+
+```{r}
+#Extraction des valeurs d'absorbances
+y <- as.matrix(NIRS_pheno[, 25:1972])
+
+# On transpose y pour que les observations soient en colonne
+yt <- t(y)
+argvals <- as.numeric(colnames(y))
+
+#Création d'une fonction pour tous les spectres
+spectre_f <- smooth.basis(argvals = argvals, yt, abs_bases)$fd
+
+#Représentation graphique
+plot(spectre_f)
+```
+
+```{r}
+spectres_mat <- t(eval.fd(argvals, spectre_f))
+X <- list(spectres_mat)
+
+model <- rob.sf.reg(NIRS_pheno$TDW, X, emodel = "classical", fmodel = "tau", gp = list(argvals))
+```
+
+Représentations graphiques
+
+```{r}
+#Réprésentation graphique des valeurs ajustées et des résidus
+plot(model[["fitted.values"]], model[["residuals"]], pch = 21, bg = "grey", 
+     col = "black", xlab = "Valeurs ajustées", ylab = "Résidus")
+
+#Représentation graphique de la fonction beta1
+coefs <- get.sf.coeffs(model)
+plot_sf_coeffs(object = coefs, b = 1)
 ```
