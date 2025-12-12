@@ -37,9 +37,9 @@ res.fpca <- pca.fd(fdobj)
 plot.pca.fd(res.fpca)
 ```
 
-On réalise maintenant une ACP fonctionnelle sur nos données issues de corrections BLUP. On commence par les graines
+On réalise maintenant une ACP fonctionnelle sur nos données issues de corrections BLUP. On commence par les graines. Ici, c'est inutile puisqu'on ne peut pas faire de lien phénotype/spectre sur les données BLUP. On va réaliser ceci plus tard sur des données MEAN de graines et de feuilles
 
-```{r}
+```{r ACP_functional_BLUP}
 
 # créer vecteur des longueurs d'ondes
 wavelength <- as.numeric(names(graines_BLUP[,-1]))
@@ -120,7 +120,7 @@ lines(eval.fd(wavelength, res.fpca$harmonics))
 
 On réalise une AFM sur les données phénotypiques. Le but est d'extraire des cluster phénotypiques avec une Classification Ascendante Hiérarchique.
 
-```{r}
+```{r cluster_AFM_pheno}
 # AFM
 res_MFA <- MFA(pheno, group=c(1,14,9), type=c("n","s","s"),
 ncp=5, name.group=c("Variété", "traits_physio","traits_dev"),
@@ -146,11 +146,9 @@ plot.MFA(res_MFA, choix = "ind",
          label = "none")
 ```
 
-Avec les cluster obtenus sur les phénotypes, on fait le lien entre les dataset
+Avec les cluster obtenus sur les phénotypes, on fait le lien entre les dataset. On commence par faire l'ACP fonctionnelle sur les graines.
 
-```{r}
-colnames(graines_MEAN) <- as.character(c("Genotype", 817:2764))
-
+```{r ACP_functional_MEAN_graines}
 wavelength <- as.numeric(names(graines_MEAN[,-1]))
 
 
@@ -180,10 +178,91 @@ as.data.frame(res.fpca$scores) %>%
   aes(x = V1, y = V2, col = cluster) +
   geom_point()+
   geom_hline(yintercept = 0, linetype = "dashed") +
-  geom_vline(xintercept = 0, linetype = "dashed")
+  geom_vline(xintercept = 0, linetype = "dashed") +
+  ggtitle("Graph des individus après une ACP fonctionnelle sur des spectres")
 ```
 
+On va maintenant réaliser ceci sur les spectres issus des feuilles sèches
+
+```{r ACP_functional_MEAN_feuilles}
+wavelength <- as.numeric(names(feuilles_s_MEAN[,-1]))
+
+
+rangeval <- c(min(wavelength), max(wavelength)) 
+nbasis <- 50 # Nombre de splines utilisées
+basisobj <- create.bspline.basis(rangeval = rangeval, nbasis = nbasis) # création d'une base d'objet
+
+# convertir les données discrètes en fd (estimation par régression sur la base)
+fdsmooth <- smooth.basis(argvals = wavelength, y = t(as.matrix(feuilles_s_MEAN[-1])), fdParobj = basisobj)
+# pour y les lignes doivent être les valeurs discrètes et les colonnes les individus
+
+fdobj <- fdsmooth$fd
+
+# ACP fonctionnelle
+res.fpca <- pca.fd(fdobj, harmfdPar = fdPar(fdobj = fdobj, lambda = 10))
+
+var_clust <- data.frame(Genotype = pheno_clust$variety,
+                        cluster = pheno_clust$clust)
+
+plot(res.fpca$scores)
+
+as.data.frame(res.fpca$scores) %>% 
+  mutate(Genotype = feuilles_s_MEAN$Genotype) %>% 
+  inner_join(var_clust, by = "Genotype") %>%
+  group_by(cluster) %>% 
+  ggplot() +
+  aes(x = V1, y = V2, col = cluster) +
+  geom_point()+
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  geom_vline(xintercept = 0, linetype = "dashed")
+
+# Affichage des premières composantes
+p2 <- eval.fd(wavelength, res.fpca$harmonics) %>% 
+  as_tibble() %>% 
+  mutate(wavelength = wavelength, mean = eval.fd(wavelength, res.fpca$meanfd)) %>% 
+  pivot_longer(-wavelength, names_to = "component") %>% 
+  ggplot(aes(x =  wavelength, y=  value)) +
+  geom_line(aes(group = component, color = component), linewidth = 1) +
+  scale_color_brewer(palette = "Dark2")
+```
+
+On voit bien 2 cluster différents avec les spectres issus des feuilles. Avec un premier axe qui tend à discriminer les génotypes du cluster 1 par rapport aux génotypes des autres cluster. Ce résultat correspond pratiquement à celui observé dans la thèse de Marianne. On se demande donc si il n'y a pas un effet de l'environnement qui est important (comme dans la thèse)
+
+On veut maintenant séparer les points en 2 cluster
+
+```{r Comparaison_groupe}
+coord_ind <- as.data.frame(res.fpca$scores)
+coord_ind$Clust <- 1
+coord_ind[which(coord_ind$V1<0.02),3] <- 2
+coord_ind$Clust <- as.factor(coord_ind$Clust)
+coord_ind$Genotype <- feuilles_s_MEAN$Genotype
+
+coord_ind %>% 
+  ggplot() +
+  aes(x = V1, y = V2, col = Clust) +
+  geom_point() +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  geom_vline(xintercept = 0, linetype = "dashed")
+
+p1 <- feuilles_s_MEAN  %>% filter(Genotype != "NAVIG_215") %>% inner_join(coord_ind, by = "Genotype") %>% 
+  pivot_longer(-c("Genotype", "V1", "V2", "Clust"),
+               names_to = "Wavelength",
+               values_to = "Abs") %>% 
+  group_by(Genotype, Clust) %>% 
+  ggplot()+
+  aes(x = as.numeric(Wavelength), y = Abs, col = Clust) +
+  geom_line(aes(group = Genotype))
+
+p1/p2
+
+```
+
+
 ```{r join_test}
+#| eval: false
+#| echo: false
+
+
 df1 <- data.frame(type = factor(c(1:12)),
                   clust = factor(sample(c(1,2,3), size = 12, replace = T)))
 summary(df1)
@@ -203,6 +282,101 @@ df2 %>% right_join(df1, by = 'type') %>% group_by(clust) %>%
 
 
 ```
+
+On va maintenant réaliser l'ACP fonctionnelle sur le jeu de données brutes (sans forément avoir un spectre par génotype mais plusieurs correspondant à chaques répétition)
+
+```{r ACP_functional_all_leafs}
+# On change les noms des variables "longueurs d'onde" pour pouvoir les utiliser dans les plots
+colnames(feuilles_s) <- c(names(feuilles_s)[1:11], 817:2764)
+
+# On défini le domaine des valeurs de l'ACP fonctionnelle
+wavelength <- 817:2764
+rangeval <- c(min(wavelength), max(wavelength))
+nbasis <- 50
+
+# On créé une base de 50 splines
+basis <- create.bspline.basis(rangeval = rangeval, nbasis = nbasis)
+
+# On ajuste notre base sur nos données
+fdsmooth <- smooth.basis(argvals = wavelength, y = t(as.matrix(feuilles_s[,-c(1:11)])), fdParobj = basis)
+
+# On récupère l'objet fonctionnel
+fdobj <- fdsmooth$fd
+
+# ACP fonctionnelle
+res.fpca <- pca.fd(fdobj)
+
+# Graph des individus
+plot(res.fpca$scores)
+
+coord_ind <- data.frame(res.fpca$scores)
+coord_ind$Id <- feuilles_s$Column1
+
+# k-means sur le graph des individus pour identifier les 2 cluster
+set.seed(123)
+res_kmeans <- kmeans(coord_ind[,-c(3)], centers = 2)
+
+coord_ind$Cluster <- as.factor(res_kmeans$cluster)
+
+coord_ind %>% ggplot() +
+  aes(x = X1, y = X2, col = Cluster) +
+  geom_point()
+
+# Affichage des spectres
+
+feuilles_s <- rename(feuilles_s, Id = Column1)
+# il faut concatener plant et genotype
+
+feuilles_subset <- feuilles_s %>% 
+  inner_join(coord_ind, by = "Id") %>% 
+  group_by(Cluster) %>%
+  sample_frac(0.05) %>% dplyr::select(Id)
+
+p1 <- feuilles_s[,-c(2:3,5:11)] %>% inner_join(coord_ind, by = "Id") %>% 
+  filter(Id %in% feuilles_subset$Id) %>% 
+  pivot_longer(-c("Genotype", "Cluster", "X1", "X2", "Id"), 
+               names_to = "Wavelength",
+               values_to = "Abs") %>% 
+  ggplot()+
+  aes(x = as.numeric(Wavelength), y = Abs, col = Cluster) +
+  geom_line(aes(group = c(Id))) +
+  ggtitle("Spectre NIRS de différents génotype de colza") +
+  xlab("Longueur d'onde (en nm)") +
+  ylab("Absorbance") +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5, face = "bold", size = 20),
+        axis.title = element_text(size = 17, face = "italic", colour = "grey22"),
+        axis.text = element_text(size = 15, face = "bold"),
+        legend.text = element_text(size = 15),
+        legend.title = element_text(size = 15)) +
+  scale_color_manual(name = "Cluster", values  = c("#E41A1C","#377EB8"))
+
+p1
+
+
+
+p2 <- eval.fd(wavelength, res.fpca$harmonics) %>% 
+  as_tibble() %>% 
+  mutate(wavelength = wavelength, mean = eval.fd(wavelength, res.fpca$meanfd)) %>% 
+  pivot_longer(-wavelength, names_to = "component") %>% 
+  ggplot(aes(x =  wavelength, y=  value)) +
+  geom_line(aes(group = component, color = component), linewidth = 1) +
+  scale_color_brewer(palette = "Dark2")  +
+  ggtitle("Fonction moyenne et premières dimensions de l'ACP fonctionnelle") +
+  xlab("Longueur d'onde (en nm)") +
+  ylab("Absorbance") +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5, face = "bold", size = 20),
+        axis.title = element_text(size = 17, face = "italic", colour = "grey22"),
+        axis.text = element_text(size = 15, face = "bold"),
+        legend.text = element_text(size = 15),
+        legend.title = element_text(size = 15))
+
+p1/p2
+
+```
+
+
 
 ## Regression fonctionnelle
 
