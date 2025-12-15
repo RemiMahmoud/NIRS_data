@@ -11,6 +11,8 @@ library(RColorBrewer)
 library(patchwork)
 library(fda)
 library(FactoMineR)
+#regression fonctionelle
+library(refund)
 ```
 
 ## Première ACP fonctionnelle sur les données
@@ -429,7 +431,7 @@ $$Y = \beta_0 + \int_{t} X\left(t\right)\beta\left(t\right)\mathrm{d}t + \epsilo
 
 ```{r}
 #Nombre de fonction de base
-nbases = 50
+nbases = 40
 
 #Création des splines
 abs_bases <- create.bspline.basis(c(817,2764), nbases)
@@ -446,6 +448,8 @@ y <- as.matrix(NIRS_pheno[, 25:1972])
 
 # On transpose y pour que les observations soient en colonne
 yt <- t(y)
+
+#Création d'un vecteur contenant les longueures d'ondes
 argvals <- as.numeric(colnames(y))
 
 #Création d'une fonction pour tous les spectres
@@ -456,20 +460,34 @@ plot(spectre_f)
 ```
 
 ```{r}
-spectres_mat <- t(eval.fd(argvals, spectre_f))
-X <- list(spectres_mat)
+#Extraction des valeurs d'absorbances
+X <- as.matrix(NIRS_pheno[, 25:1972])
+```
 
-model <- rob.sf.reg(NIRS_pheno$TDW, X, emodel = "classical", fmodel = "tau", gp = list(argvals))
+Réalisation du modèle 
+
+```{r}
+Y <- NIRS_pheno$TDW
+#bs="ps" signifie que les bases des fonctions des X sont des splines cubiques
+#k = nombre de fonctions propres de la matrice de variance-covariance lissée
+model <- pfr(Y ~ lf(X, k=50, bs="ps"), data = NIRS_pheno)
 ```
 
 Représentations graphiques
-
 ```{r}
-#Réprésentation graphique des valeurs ajustées et des résidus
-plot(model[["fitted.values"]], model[["residuals"]], pch = 21, bg = "grey", 
-     col = "black", xlab = "Valeurs ajustées", ylab = "Résidus")
+plot(model[["fitted.values"]], 
+     model[["residuals"]],
+     pch = 21,
+     bg = "red",
+     col = "black",
+     xlab = "Valeurs ajustées",
+     ylab = "Résidus")
 
-#Représentation graphique de la fonction beta1
-coefs <- get.sf.coeffs(model)
-plot_sf_coeffs(object = coefs, b = 1)
+#plot(model, ylab=expression(paste(beta(t))), xlab="t")
+```
+
+
+Création d'une fonction
+```{r}
+
 ```
