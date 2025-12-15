@@ -13,6 +13,7 @@ library(fda)
 library(FactoMineR)
 #regression fonctionelle
 library(refund)
+library(pls)
 ```
 
 ## Première ACP fonctionnelle sur les données
@@ -483,11 +484,83 @@ plot(model[["fitted.values"]],
      xlab = "Valeurs ajustées",
      ylab = "Résidus")
 
+plot(NIRS_pheno$TDW, 
+     model[["fitted.values"]],
+     pch = 21,
+     bg = "red",
+     col = "black",
+     xlab = "Valeurs observées",
+     ylab = "Valeurs ajustées")
+
 #plot(model, ylab=expression(paste(beta(t))), xlab="t")
 ```
 
+$R^2$, erreure de prédiction
+```{r}
+#R2
+R2 <- cor(NIRS_pheno$TDW, model[["fitted.values"]])^2
+print(R2)
+
+#Erreur de prédiction
+
+#création dun vecteur qui contiendra les valeurs prédites
+cvpred = numeric(nrow(NIRS_pheno))
+#création des segments
+segments = cvsegments(nrow(NIRS_pheno),10)
+#On ajuste le modèle sur tous les segments sauf le kième 
+for (k in 1:10) {
+  #On extrait les indices des observations qui ne sont pas dans le segment
+  train_id <- setdiff(seq_len(nrow(NIRS_pheno)), segments[[k]])
+  #On extrait les indices des observations qui sont dans le segment 
+  test_id  <- segments[[k]]
+  #Ajustement du modèle sur l'echantillons train
+  model <- pfr(
+    Y ~ lf(X, k = 50, bs = "ps"),
+    data = list(
+      Y = Y[train_id],
+      X = X[train_id, ]
+    )
+  )
+  #prédiction sur l'échantillon test
+  cvpred[test_id] <- predict(
+    model,
+    newdata = list(X = X[test_id, ])
+  )
+}
+
+#Calul du PRESS
+PRESS <- sum((NIRS_pheno$TDW-cvpred)^2)
+#Calcul de la MSEP
+MSEP <- PRESS/length(NIRS_pheno$TDW)
+#RMSEP
+RMSEP <- sqrt(MSEP)
+```
+
+Création d'un modèle nul
+```{r}
+#Erreur de prédiction
+cvpred <- numeric(length(Y))
+segments <- cvsegments(length(Y), 10)
+
+for (k in 1:10) {
+  train_id <- setdiff(seq_along(Y), segments[[k]])
+  test_id  <- segments[[k]]
+    # Création du modèle nul qui est la moyenne de l'échantillon train
+  y_mean <- mean(Y[train_id])
+  # Prédiction sur l'échantillon test qui est donc la moyenne de l'échantillon train
+  cvpred[test_id] <- y_mean
+}
+
+# PRESS
+PRESS_null <- sum((Y - cvpred)^2)
+# MSEP
+MSEP_null <- PRESS_null / length(Y)
+# RMSEP
+RMSEP_null <- sqrt(MSEP_null)
+```
 
 Création d'une fonction
 ```{r}
 
 ```
+
