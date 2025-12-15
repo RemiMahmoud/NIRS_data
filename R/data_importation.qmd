@@ -56,6 +56,16 @@ id_subsample <- graines_plot %>%
 
 graines_plot_subsample <- graines_plot %>% 
   inner_join(id_subsample)
+
+# Affichage de la première courbe pour voir à quoi ressemble un spectre
+
+# colnames(feuilles_s) <- c(names(feuilles_s[,1:11]), 817:2764)
+# feuilles_s[1,] %>% pivot_longer(cols = -c(1:11),
+#                             names_to = "wavelength",
+#                             values_to = "Abs") %>% 
+#   group_by(Genotype) %>% 
+#   ggplot(aes(x = as.numeric(wavelength), y = Abs)) +
+#   geom_line()
 ```
 
 On importe aussi les jeux de données correspondant aux différentes corrections apportées (*cf thèse*)
