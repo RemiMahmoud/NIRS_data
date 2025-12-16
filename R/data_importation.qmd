@@ -59,7 +59,7 @@ graines_plot_subsample <- graines_plot %>%
 
 # Affichage de la première courbe pour voir à quoi ressemble un spectre
 
-# colnames(feuilles_s) <- c(names(feuilles_s[,1:11]), 817:2764)
+colnames(feuilles_s) <- c(names(feuilles_s[,1:11]), 817:2764)
 # feuilles_s[1,] %>% pivot_longer(cols = -c(1:11),
 #                             names_to = "wavelength",
 #                             values_to = "Abs") %>% 
@@ -171,3 +171,54 @@ pheno$variety <- as.factor(pheno$variety)
 # dim(pheno)
 # paste('Il y a',(pheno %>% distinct(variety) %>% dim())[1],"variétés (ou génotype) différentes")
 ```
+
+# Suppression d'individus
+
+## Suppression du rutabaga
+
+```{r}
+
+# On isole les génotypes de rutabagas
+genotype_rutabaga <- graines %>% filter(Type == "Swede") %>%
+  distinct(Genotype) 
+
+# On change la classe (de data.frame vers character)
+genotype_rutabaga <- as.vector(as.matrix(genotype_rutabaga))
+
+# 
+graines %>% filter(!(Genotype %in% genotype_rutabaga)) %>% 
+  dplyr::select(Genotype)
+
+graines <- graines %>% filter(!(Genotype %in% genotype_rutabaga))
+graines_MEAN <- graines_MEAN %>% filter(!(Genotype %in% genotype_rutabaga))
+feuilles_s <- feuilles_s %>% filter(!(Genotype %in% genotype_rutabaga))
+feuilles_s_MEAN <- feuilles_s_MEAN %>% filter(!(Genotype %in% genotype_rutabaga))
+
+```
+
+
+## Suppression d'individu abberants
+
+
+On a dans les spectres feuilles un individu particulier, on le retire du jeu de données
+
+```{r}
+feuilles_s %>% filter(Genotype == "NAVIG_215") %>% 
+  pivot_longer(-c(1:11), 
+               names_to = "waveN",
+               values_to = "abs") %>% 
+  group_by(Column1) %>% 
+  ggplot(aes(x = as.numeric(waveN), y = abs)) +
+    geom_line(aes(group = Column1))
+
+aberrant_data <- feuilles_s %>% pivot_longer(-c(1:11), 
+               names_to = "waveN",
+               values_to = "abs") %>% 
+  filter(abs > 0.2) %>% distinct(Column1)
+
+aberrant_data <- as.vector(as.matrix(aberrant_data))
+
+feuilles_s <- feuilles_s %>% filter(!(Column1 %in% aberrant_data))
+
+```
+
