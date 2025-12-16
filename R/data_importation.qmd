@@ -57,15 +57,7 @@ id_subsample <- graines_plot %>%
 graines_plot_subsample <- graines_plot %>% 
   inner_join(id_subsample)
 
-# Affichage de la première courbe pour voir à quoi ressemble un spectre
 
-colnames(feuilles_s) <- c(names(feuilles_s[,1:11]), 817:2764)
-# feuilles_s[1,] %>% pivot_longer(cols = -c(1:11),
-#                             names_to = "wavelength",
-#                             values_to = "Abs") %>% 
-#   group_by(Genotype) %>% 
-#   ggplot(aes(x = as.numeric(wavelength), y = Abs)) +
-#   geom_line()
 ```
 
 On importe aussi les jeux de données correspondant aux différentes corrections apportées (*cf thèse*)
@@ -131,7 +123,17 @@ On importe les jeux de données bruts et avec correction. On importe pour le mom
 # importation du jeu de donnée brut (sans prétraitement)
 feuilles_s <- read.table("data/NIRS_experiment/Feuilles_seches/nirs_powder_all_pretreat3.csv", header = T, stringsAsFactors = T, sep = ";", dec = ".") 
 
-# Dataset avec "all_pretreat" ==> weird
+colnames(feuilles_s) <- c(names(feuilles_s[,1:11]), 817:2764)
+
+# Affichage de la première courbe pour voir à quoi ressemble un spectre
+
+# feuilles_s[1,] %>% pivot_longer(cols = -c(1:11),
+#                             names_to = "wavelength",
+#                             values_to = "Abs") %>% 
+#   group_by(Genotype) %>% 
+#   ggplot(aes(x = as.numeric(wavelength), y = Abs)) +
+#   geom_line()
+
 dim(feuilles_s %>% distinct(Genotype))[1] # Il y a 246 Génotype différents
 
 
