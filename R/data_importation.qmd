@@ -224,3 +224,11 @@ feuilles_s <- feuilles_s %>% filter(!(Column1 %in% aberrant_data))
 
 ```
 
+# Centrage réduction des spectres
+
+```{r}
+snv <- t(scale(t(feuilles_s[,-c(1:11)])))
+feuilles_s <- data.frame(feuilles_s[,1:11], snv)
+colnames(feuilles_s) <- c(names(feuilles_s)[1:11],817:2764)
+```
+
