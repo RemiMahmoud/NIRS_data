@@ -198,9 +198,7 @@ feuilles_s_MEAN <- feuilles_s_MEAN %>% filter(!(Genotype %in% genotype_rutabaga)
 
 ```
 
-
 ## Suppression d'individu abberants
-
 
 On a dans les spectres feuilles un individu particulier, on le retire du jeu de données
 
@@ -231,4 +229,3 @@ snv <- t(scale(t(feuilles_s[,-c(1:11)])))
 feuilles_s <- data.frame(feuilles_s[,1:11], snv)
 colnames(feuilles_s) <- c(names(feuilles_s)[1:11],817:2764)
 ```
-

@@ -570,10 +570,19 @@ fun_model <- function(X, Y, Kx = 50, nfold = 10) {
   err_relative <- round(err_relative, 2)
   
   #Appel des sorties
+  #Liste contenant les résultats
   result <- list()
+  #Appel du gain avec $err_relative
   result$err_relative <- err_relative
-  result$MSEP <- MSEP
-  result$model <- fd_mod
+  #Appel de la MSEP avec $MSEP
+  result$MSEP <- round(MSEP, 2)
+  #Appel de la régression fonctionnelle en sortie de fonction avec $model_fun_out
+  result$model_fun_out <- fd_mod
+  #Appel des résidus des régressions avec $model_fun_residus
+  residus_vc <- Y - cvpred
+  result$model_fun_residus <- residus_vc
+  #Appel des prédictions avec $pred_fun_out
+  result$pred_fun_out <- cvpred
   return(result)
 }
 ```
@@ -611,13 +620,41 @@ ACP sur les résidus
 X <- as.matrix(NIRS_pheno[, 35:1982])
 
 #Indices des colonnes pour lesquells le modèle sera ajusté
-Y_cols <- 2:3
+Y_cols <- 2:24
 
-#Ajustement du modèle pour tous les phénotypes
+#Tableau des résidus du modèle pour tous les phénotypes
 res_resid <- lapply(Y_cols, function(i) {
   Y <- NIRS_pheno[[i]]
   res_resid <- fun_model(X, Y)
-  model = res_resid$model
+  residus <- res_resid$model_fun_residus
 })
+
+table_residus <- as.data.frame(do.call(cbind, res_resid))
+colnames(table_residus) <- colnames(NIRS_pheno)[Y_cols]
+table_residus <- cbind(NIRS_pheno[1], table_residus)
+
+#Tableau des prédictions du modèle pour tous les phénotypes
+res_pred <- lapply(Y_cols, function(i) {
+  Y <- NIRS_pheno[[i]]
+  res_pred <- fun_model(X, Y)
+  pred <- res_pred$pred_fun_out
+})
+
+table_pred <- as.data.frame(do.call(cbind, res_pred))
+colnames(table_pred) <- colnames(NIRS_pheno)[Y_cols]
+table_pred <- cbind(NIRS_pheno[1], table_pred)
+
+#Représentation graphique résidus en fonction des prédictions
+plot(table_pred$LASNQ, 
+     table_residus$LASNQ,
+     pch = 21,
+     bg = "red",
+     col = "black",
+     xlab = "Prédiction après VC",
+     ylab = "Résidus")
+
+#ACP
+ACP_res <- PCA(table_residus[c(-1)])
 ```
+
 
