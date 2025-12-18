@@ -4,7 +4,7 @@ format: html
 editor: visual
 ---
 
-```{r}
+```{r library}
 # rm(list = ls())
 library(readr)
 library(tidyverse)
@@ -14,7 +14,7 @@ library(tidyverse)
 
 On commence par importer les données brutes.
 
-```{r}
+```{r importatoin_raw_seed}
 graines <- read.table("data/NIRS_experiment/Graines/matrice_nirs_seeds_paneltotal_ready202307.csv", sep = ";", dec = ",", header = T)
 
 # Ce dataset semble identique au précédent, sans colonnes explicatives supplémentaires
@@ -35,7 +35,7 @@ colnames(graines) <- as.character(c("X", "Genotype", "Rep", "Type", 800:2781))
 
 Une fois les données importées, on transforme ce dataset pour pouvoir afficher les courbes.
 
-```{r}
+```{r scale_seed}
 
 # On va centrer et réduire les spectres
 snv <- t(scale(t(graines[,-c(1:4)])))
@@ -62,7 +62,7 @@ graines_plot_subsample <- graines_plot %>%
 
 On importe aussi les jeux de données correspondant aux différentes corrections apportées (*cf thèse*)
 
-```{r}
+```{r seed_correction}
 # Correction 1
 graines_MEAN <- read.table("data/NIRS_experiment/Graines/nirs_seeds_mean.csv", sep = ",", dec = ".", header = T, stringsAsFactors = T)
 
@@ -80,7 +80,7 @@ colnames(graines_BLUP) <- c("Genotype", 817:2763)
 
 Dans le jeu de donnée BLUP, les lignes et les colonnes ne sont pas nommées. Or il y a une colonne (une longueur d'onde) de moins que dans le jeu de donnée MEAN.
 
-```{r}
+```{r adjust_wavelength}
 # on veut rename les colonnes, mais on ne sait pas si ce sont les bonnes longueur d'ondes. On passe de 1948 à 1947 longueurs d'onde.
 
 # on supprime la dernière longueur d'onde
@@ -119,7 +119,7 @@ On voit clairement un décallage entre les 2 courbes. On suppose donc que dans g
 
 On importe les jeux de données bruts et avec correction. On importe pour le moment seulement les dataset des feuilles sèches.
 
-```{r}
+```{r leaf_importation}
 # importation du jeu de donnée brut (sans prétraitement)
 feuilles_s <- read.table("data/NIRS_experiment/Feuilles_seches/nirs_powder_all_pretreat3.csv", header = T, stringsAsFactors = T, sep = ";", dec = ".") 
 
@@ -157,7 +157,7 @@ colnames(feuilles_s_BLUE) <- c("Genotype", 817:2763)
 
 On importe les données des phénotypes
 
-```{r}
+```{r pheno_importation}
 pheno <- read.table("data/Pheno/Vigueur_precoce/df_BLUES_VP_ready_GWAS.csv", sep = ";", header = TRUE)
 pheno <- pheno[,-1]
 
@@ -178,7 +178,7 @@ pheno$variety <- as.factor(pheno$variety)
 
 ## Suppression du rutabaga
 
-```{r}
+```{r delete_swede}
 
 # On isole les génotypes de rutabagas
 genotype_rutabaga <- graines %>% filter(Type == "Swede") %>%
@@ -202,7 +202,7 @@ feuilles_s_MEAN <- feuilles_s_MEAN %>% filter(!(Genotype %in% genotype_rutabaga)
 
 On a dans les spectres feuilles un individu particulier, on le retire du jeu de données
 
-```{r}
+```{r delete_strange_value}
 feuilles_s %>% filter(Genotype == "NAVIG_215") %>% 
   pivot_longer(-c(1:11), 
                names_to = "waveN",
@@ -224,7 +224,7 @@ feuilles_s <- feuilles_s %>% filter(!(Column1 %in% aberrant_data))
 
 # Centrage réduction des spectres
 
-```{r}
+```{r scale_leaf}
 snv <- t(scale(t(feuilles_s[,-c(1:11)])))
 feuilles_s <- data.frame(feuilles_s[,1:11], snv)
 colnames(feuilles_s) <- c(names(feuilles_s)[1:11],817:2764)

@@ -566,7 +566,7 @@ fun_model <- function(X, Y, Kx = 50, nfold = 10) {
   RMSEP <- sqrt(MSEP)
   
   ### Gain relative en % ###
-  err_relative <- (RMSEP_nul - RMSEP)/RMSEP_nul*100
+  err_relative <- (MSEP_nul - MSEP)/MSEP_nul*100
   err_relative <- round(err_relative, 2)
   
   #Appel des sorties
@@ -590,9 +590,17 @@ fun_model <- function(X, Y, Kx = 50, nfold = 10) {
 Test de la fonction
 ```{r}
 X <- as.matrix(NIRS_pheno[, 35:1982])
-Y <- NIRS_pheno$TDW
+Y <- NIRS_pheno$LA
 model <- fun_model(X, Y)
 print(model$err_relative)
+
+#Graphique de la fonction des beta
+bhat.lf <- coef(model$model_fun_out, n=101)
+bhat.lf$upper <- bhat.lf$value + 1.96*bhat.lf$se
+bhat.lf$lower <- bhat.lf$value - 1.96*bhat.lf$se
+matplot(bhat.lf$X.argvals, bhat.lf[,c(2, 4, 5)], 
+        type = "l",
+        ylab=expression(paste(beta(t))), xlab="t")
 ```
 
 Métriques pour tous les traits phénotypiques
@@ -615,14 +623,14 @@ res_metrics <- lapply(Y_cols, function(i) {
 res_metrics <- do.call(rbind, res_metrics)
 ```
 
-ACP sur les résidus
+Analyse des résidus
 ```{r}
 X <- as.matrix(NIRS_pheno[, 35:1982])
 
-#Indices des colonnes pour lesquells le modèle sera ajusté
+#Indices des colonnes pour lesquelles le modèle sera ajusté
 Y_cols <- 2:24
 
-#Tableau des résidus du modèle pour tous les phénotypes
+#Extraction d'un tabelau contenant les résidus pour chaque phénotypes
 res_resid <- lapply(Y_cols, function(i) {
   Y <- NIRS_pheno[[i]]
   res_resid <- fun_model(X, Y)
@@ -633,7 +641,7 @@ table_residus <- as.data.frame(do.call(cbind, res_resid))
 colnames(table_residus) <- colnames(NIRS_pheno)[Y_cols]
 table_residus <- cbind(NIRS_pheno[1], table_residus)
 
-#Tableau des prédictions du modèle pour tous les phénotypes
+#Extraction d'un tabelau contenant les prédictions pour chaque phénotypes
 res_pred <- lapply(Y_cols, function(i) {
   Y <- NIRS_pheno[[i]]
   res_pred <- fun_model(X, Y)
@@ -645,16 +653,39 @@ colnames(table_pred) <- colnames(NIRS_pheno)[Y_cols]
 table_pred <- cbind(NIRS_pheno[1], table_pred)
 
 #Représentation graphique résidus en fonction des prédictions
-plot(table_pred$LASNQ, 
-     table_residus$LASNQ,
-     pch = 21,
-     bg = "red",
-     col = "black",
-     xlab = "Prédiction après VC",
-     ylab = "Résidus")
+plot_fun <- function(var) {
+  var_name <- deparse(substitute(var))
+  plot(table_pred[[var_name]], 
+       table_residus[[var_name]],
+       pch = 21,
+       bg = "red",
+       col = "black",
+       xlab = "Prédiction après VC",
+       ylab = "Résidus")
+}
+
+plot_fun(SLA)
 
 #ACP
 ACP_res <- PCA(table_residus[c(-1)])
 ```
 
+Extratcion des fonctions $\beta$
+```{r}
+Y_cols <- 2:3
+
+#Graphique de la fonction des beta
+res_model <- lapply(Y_cols, function(i) {
+  Y <- NIRS_pheno[[i]]
+  res_model <- fun_model(X, Y)
+  model <- res_model$model_fun_out
+})
+
+bhat.lf <- coef(res_model[[1]][["coefficients"]], n=100)
+bhat.lf$upper <- bhat.lf$value + 1.96*bhat.lf$se
+bhat.lf$lower <- bhat.lf$value - 1.96*bhat.lf$se
+matplot(bhat.lf$X.argvals, bhat.lf[,c(2, 4, 5)], 
+        type = "l",
+        ylab=expression(paste(beta(t))), xlab="t")
+```
 
