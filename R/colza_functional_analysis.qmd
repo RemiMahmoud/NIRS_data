@@ -383,24 +383,7 @@ p1/p2
 
 ## Regression fonctionnelle
 
-Importation des données NIRS
-
 ```{r}
-feuille_seche <- read.table("data/NIRS_experiment/Feuilles_seches/nirs_powder_MEAN.csv", sep = ",", header = TRUE)  
-
-#Changement des noms de colonnes 
-colnames(feuille_seche) <- as.character(c("Genotype", 817:2764))  
-
-#Suppression de l'individu abhérant détecté dans le script these_results 
-feuille_seche <- feuille_seche %>% filter(Genotype != "NAVIG_215")
-```
-
-Importation des phénotypes
-
-```{r}
-pheno <- read.table("data/Pheno/Vigueur_precoce/df_BLUES_VP_ready_GWAS.csv", sep = ";", header = TRUE) 
-pheno <- pheno[,-1]  
-
 cols <- c("LA","TDW","ADW","RDW","LWR","LAR","SLA","SR","SNQ","LASNQ","TNQ",
           "SNU","NUtE_TOT","NUtE_AER","Sp_L1_L4","Sp_L1_L2","Sp_L2_L3",
           "Sp_L3_L4","SCA")  
@@ -408,67 +391,26 @@ cols <- c("LA","TDW","ADW","RDW","LWR","LAR","SLA","SR","SNQ","LASNQ","TNQ",
 pheno <- pheno |>    
   mutate(across(all_of(cols), as.numeric))  
 
-#Changement des noms de colonnes 
+#Changement des noms de colonnes de variety vers Genotype dans pheno
 pheno <- pheno |>    
   rename(Genotype = variety)  
 
-#Suppression de l'individu abhérant détecté dans le script these_results 
-pheno <- pheno %>% filter(Genotype != "NAVIG_215")
-```
-
-Fusion de feuille_seche et pheno
-
-```{r}
 NIRS_pheno <- pheno |>    
-  left_join(feuille_seche) |>    
+  left_join(feuilles_s) |>    
   distinct(Genotype, .keep_all =TRUE)
 ```
+
 
 #### Réalisation du modèle Linear Scalar-on-Function Regression (LSFR)
 
 $$Y = \beta_0 + \int_{t} X\left(t\right)\beta\left(t\right)\mathrm{d}t + \epsilon$$
-
-1.  Création des fonctions de bases pour les spectres $X(t)$
-
-```{r}
-#Nombre de fonction de base
-nbases = 40
-
-#Création des splines
-abs_bases <- create.bspline.basis(c(817,2764), nbases)
-
-#Représentation des splines
-plot(abs_bases)
-```
-
-2.  Création des fonctions des spectres
-
-```{r}
-#Extraction des valeurs d'absorbances
-y <- as.matrix(NIRS_pheno[, 25:1972])
-
-# On transpose y pour que les observations soient en colonne
-yt <- t(y)
-
-#Création d'un vecteur contenant les longueures d'ondes
-argvals <- as.numeric(colnames(y))
-
-#Création d'une fonction pour tous les spectres
-spectre_f <- smooth.basis(argvals = argvals, yt, abs_bases)$fd
-
-#Représentation graphique
-plot(spectre_f)
-```
-
-```{r}
-#Extraction des valeurs d'absorbances
-X <- as.matrix(NIRS_pheno[, 25:1972])
-```
-
 Réalisation du modèle 
 
 ```{r}
-Y <- NIRS_pheno$TDW
+#Extraction des valeurs d'absorbances
+X <- as.matrix(NIRS_pheno[, 35:1982])
+
+Y <- NIRS_pheno$RDW
 #bs="ps" signifie que les bases des fonctions des X sont des splines cubiques
 #k = nombre de fonctions propres de la matrice de variance-covariance lissée
 model <- pfr(Y ~ lf(X, k=50, bs="ps"), data = NIRS_pheno)
@@ -484,7 +426,7 @@ plot(model[["fitted.values"]],
      xlab = "Valeurs ajustées",
      ylab = "Résidus")
 
-plot(NIRS_pheno$TDW, 
+plot(NIRS_pheno$RDW, 
      model[["fitted.values"]],
      pch = 21,
      bg = "red",
@@ -498,12 +440,12 @@ plot(NIRS_pheno$TDW,
 $R^2$, erreure de prédiction
 ```{r}
 #R2
-R2 <- cor(NIRS_pheno$TDW, model[["fitted.values"]])^2
+R2 <- cor(NIRS_pheno$RDW, model[["fitted.values"]])^2
 print(R2)
 
 #Erreur de prédiction
 
-#création dun vecteur qui contiendra les valeurs prédites
+#création d'un vecteur qui contiendra les valeurs prédites
 cvpred = numeric(nrow(NIRS_pheno))
 #création des segments
 segments = cvsegments(nrow(NIRS_pheno),10)
@@ -529,9 +471,9 @@ for (k in 1:10) {
 }
 
 #Calul du PRESS
-PRESS <- sum((NIRS_pheno$TDW-cvpred)^2)
+PRESS <- sum((NIRS_pheno$RDW-cvpred)^2)
 #Calcul de la MSEP
-MSEP <- PRESS/length(NIRS_pheno$TDW)
+MSEP <- PRESS/length(NIRS_pheno$RDW)
 #RMSEP
 RMSEP <- sqrt(MSEP)
 ```
@@ -545,7 +487,7 @@ segments <- cvsegments(length(Y), 10)
 for (k in 1:10) {
   train_id <- setdiff(seq_along(Y), segments[[k]])
   test_id  <- segments[[k]]
-    # Création du modèle nul qui est la moyenne de l'échantillon train
+  # Création du modèle nul qui est la moyenne de l'échantillon train
   y_mean <- mean(Y[train_id])
   # Prédiction sur l'échantillon test qui est donc la moyenne de l'échantillon train
   cvpred[test_id] <- y_mean
@@ -559,8 +501,160 @@ MSEP_null <- PRESS_null / length(Y)
 RMSEP_null <- sqrt(MSEP_null)
 ```
 
+Erreure relative en %
+```{r}
+err_relative <- (RMSEP_null - RMSEP)/RMSEP_null*100
+```
+
 Création d'une fonction
 ```{r}
-
+fun_model <- function(X, Y, Kx = 50, nfold = 10) {
+  
+  #Création des segments
+  segments <- cvsegments(length(Y), nfold)
+  
+  ### Modèle nul ###
+  #Création d'un vecteur pour le receuil des valeurs prédites
+  cvpred_nul <- numeric(length(Y))
+  for (k in 1:nfold) {
+    #Indices des observations pour l'ajustement (observations hors du segment k)
+    train_id <- setdiff(seq_len(length(Y)), segments[[k]])
+    #Indices des observations pour la prédiction (observations du segment k)
+    test_id  <- segments[[k]]
+    # Création du modèle nul qui est la moyenne de l'échantillon train
+    y_mean <- mean(Y[train_id])
+    # Prédiction sur l'échantillon test qui est donc la moyenne de l'échantillon train
+    cvpred_nul[test_id] <- y_mean
+  }
+  
+  #PRESS du modèle nul
+  PRESS_nul <- sum((Y - cvpred_nul)^2)
+  #MSEP du modèle nul
+  MSEP_nul <- mean((Y - cvpred_nul)^2)
+  #RMSEP du modèle nul
+  RMSEP_nul <- sqrt(MSEP_nul)
+  
+  ### Model fonctionnel ###
+  #création d'un vecteur qui contiendra les valeurs prédites
+  cvpred = numeric(length(Y))
+  #On ajuste le modèle sur tous les segments sauf le kième 
+  for (k in 1:nfold) {
+    #Indices des observations pour l'ajustement (observations hors du segment k)
+    train_id <- setdiff(seq_len(length(Y)), segments[[k]])
+    #Indices des observations pour la prédiction (observations du segment k)
+    test_id  <- segments[[k]]
+    #Ajustement du modèle sur l'echantillon train
+    fd_mod <- pfr(
+      Y ~ lf(X, k = Kx, bs = "ps"),
+      data = list(
+        Y = Y[train_id],
+        X = X[train_id, ]
+      )
+    )
+    #prédiction sur l'échantillon test
+    cvpred[test_id] <- predict(
+      fd_mod,
+      newdata = list(X = X[test_id, ])
+    )
+  }
+  
+  #PRESS
+  PRESS <- sum((Y-cvpred)^2)
+  #MSEP
+  MSEP <- mean((Y-cvpred)^2)
+  #RMSEP
+  RMSEP <- sqrt(MSEP)
+  
+  ### Gain relative en % ###
+  err_relative <- (RMSEP_nul - RMSEP)/RMSEP_nul*100
+  err_relative <- round(err_relative, 2)
+  
+  #Appel des sorties
+  #Liste contenant les résultats
+  result <- list()
+  #Appel du gain avec $err_relative
+  result$err_relative <- err_relative
+  #Appel de la MSEP avec $MSEP
+  result$MSEP <- round(MSEP, 2)
+  #Appel de la régression fonctionnelle en sortie de fonction avec $model_fun_out
+  result$model_fun_out <- fd_mod
+  #Appel des résidus des régressions avec $model_fun_residus
+  residus_vc <- Y - cvpred
+  result$model_fun_residus <- residus_vc
+  #Appel des prédictions avec $pred_fun_out
+  result$pred_fun_out <- cvpred
+  return(result)
+}
 ```
+
+Test de la fonction
+```{r}
+X <- as.matrix(NIRS_pheno[, 35:1982])
+Y <- NIRS_pheno$TDW
+model <- fun_model(X, Y)
+print(model$err_relative)
+```
+
+Métriques pour tous les traits phénotypiques
+```{r}
+X <- as.matrix(NIRS_pheno[, 35:1982])
+
+#Indices des colonnes pour lesquells le modèle sera ajusté
+Y_cols <- 2:24
+
+#Ajustement du modèle pour tous les phénotypes
+res_metrics <- lapply(Y_cols, function(i) {
+  Y <- NIRS_pheno[[i]]
+  res_fd_mod <- fun_model(X, Y)
+  data.frame(Gain = res_fd_mod$err_relative, 
+             MSEP = res_fd_mod$MSEP,
+             row.names = colnames(NIRS_pheno[i]))
+})
+
+#Simplification du data.frame avec les métriques en colonnes et les traits phénotypiques en ligne
+res_metrics <- do.call(rbind, res_metrics)
+```
+
+ACP sur les résidus
+```{r}
+X <- as.matrix(NIRS_pheno[, 35:1982])
+
+#Indices des colonnes pour lesquells le modèle sera ajusté
+Y_cols <- 2:24
+
+#Tableau des résidus du modèle pour tous les phénotypes
+res_resid <- lapply(Y_cols, function(i) {
+  Y <- NIRS_pheno[[i]]
+  res_resid <- fun_model(X, Y)
+  residus <- res_resid$model_fun_residus
+})
+
+table_residus <- as.data.frame(do.call(cbind, res_resid))
+colnames(table_residus) <- colnames(NIRS_pheno)[Y_cols]
+table_residus <- cbind(NIRS_pheno[1], table_residus)
+
+#Tableau des prédictions du modèle pour tous les phénotypes
+res_pred <- lapply(Y_cols, function(i) {
+  Y <- NIRS_pheno[[i]]
+  res_pred <- fun_model(X, Y)
+  pred <- res_pred$pred_fun_out
+})
+
+table_pred <- as.data.frame(do.call(cbind, res_pred))
+colnames(table_pred) <- colnames(NIRS_pheno)[Y_cols]
+table_pred <- cbind(NIRS_pheno[1], table_pred)
+
+#Représentation graphique résidus en fonction des prédictions
+plot(table_pred$LASNQ, 
+     table_residus$LASNQ,
+     pch = 21,
+     bg = "red",
+     col = "black",
+     xlab = "Prédiction après VC",
+     ylab = "Résidus")
+
+#ACP
+ACP_res <- PCA(table_residus[c(-1)])
+```
+
 
