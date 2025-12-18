@@ -14,6 +14,9 @@ library(FactoMineR)
 #regression fonctionelle
 library(refund)
 library(pls)
+
+conflicted::conflicts_prefer(dplyr::filter, dplyr::select)
+
 ```
 
 ## Première ACP fonctionnelle sur les données
@@ -433,8 +436,12 @@ plot(NIRS_pheno$RDW,
 #plot(model, ylab=expression(paste(beta(t))), xlab="t")
 ```
 
+<<<<<<< HEAD
 $R^2$, erreure de prédiction
 
+=======
+$R^2$, erreur de prédiction
+>>>>>>> 22e8a6fd87bbafe04937d53967e52918f1e9b8a4
 ```{r}
 #R2
 R2 <- cor(NIRS_pheno$RDW, model[["fitted.values"]])^2
