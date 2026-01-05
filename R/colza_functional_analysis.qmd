@@ -9,11 +9,11 @@ library(tidyverse)
 library(fda)
 library(RColorBrewer)
 library(patchwork)
-library(fda)
 library(FactoMineR)
 #regression fonctionelle
 library(refund)
 library(pls)
+library(VIM)
 library(naniar)
 
 conflicted::conflicts_prefer(dplyr::filter, dplyr::select)
@@ -407,7 +407,7 @@ Réalisation du modèle Linear Scalar-on-Function Regression (LSFR)
 
 $$Y = \beta_0 + \int_{t} X\left(t\right)\beta\left(t\right)\mathrm{d}t + \epsilon$$
 
-Création d'une fonction appliaquant la LSFR
+Création d'une fonction appliquant la LSFR
 
 ```{r}
 fun_model <- function(X, Y, Kx = 50, nfold = 10) {
@@ -558,7 +558,7 @@ plot_fun(LWR)
 #ACP_res <- PCA(table_residus[c(-1)])
 ```
 
-Extratcion des fonctions $\beta$
+Extraction des fonctions $\beta$
 
 ```{r}
 #Graphique de la fonction des beta
