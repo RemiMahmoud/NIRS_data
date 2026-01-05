@@ -263,7 +263,6 @@ p1/p2
 
 ```
 
-
 ```{r join_test}
 #| eval: false
 #| echo: false
@@ -382,8 +381,6 @@ p1/p2
 
 ```
 
-
-
 ## Regression fonctionnelle
 
 ```{r}
@@ -403,11 +400,9 @@ NIRS_pheno <- pheno |>
   distinct(Genotype, .keep_all =TRUE)
 ```
 
-
 #### Réalisation du modèle Linear Scalar-on-Function Regression (LSFR)
 
-$$Y = \beta_0 + \int_{t} X\left(t\right)\beta\left(t\right)\mathrm{d}t + \epsilon$$
-Réalisation du modèle 
+$$Y = \beta_0 + \int_{t} X\left(t\right)\beta\left(t\right)\mathrm{d}t + \epsilon$$ Réalisation du modèle
 
 ```{r}
 #Extraction des valeurs d'absorbances
@@ -420,6 +415,7 @@ model <- pfr(Y ~ lf(X, k=50, bs="ps"), data = NIRS_pheno)
 ```
 
 Représentations graphiques
+
 ```{r}
 plot(model[["fitted.values"]], 
      model[["residuals"]],
@@ -440,7 +436,12 @@ plot(NIRS_pheno$RDW,
 #plot(model, ylab=expression(paste(beta(t))), xlab="t")
 ```
 
+<<<<<<< HEAD
+$R^2$, erreure de prédiction
+
+=======
 $R^2$, erreur de prédiction
+>>>>>>> 22e8a6fd87bbafe04937d53967e52918f1e9b8a4
 ```{r}
 #R2
 R2 <- cor(NIRS_pheno$RDW, model[["fitted.values"]])^2
@@ -482,6 +483,7 @@ RMSEP <- sqrt(MSEP)
 ```
 
 Création d'un modèle nul
+
 ```{r}
 #Erreur de prédiction
 cvpred <- numeric(length(Y))
@@ -505,11 +507,13 @@ RMSEP_null <- sqrt(MSEP_null)
 ```
 
 Erreure relative en %
+
 ```{r}
 err_relative <- (RMSEP_null - RMSEP)/RMSEP_null*100
 ```
 
 Création d'une fonction
+
 ```{r}
 fun_model <- function(X, Y, Kx = 50, nfold = 10) {
   
@@ -591,6 +595,7 @@ fun_model <- function(X, Y, Kx = 50, nfold = 10) {
 ```
 
 Test de la fonction
+
 ```{r}
 X <- as.matrix(NIRS_pheno[, 35:1982])
 Y <- NIRS_pheno$LA
@@ -607,6 +612,7 @@ fda::matplot(bhat.lf$X.argvals, bhat.lf[,c(2, 4, 5)],
 ```
 
 Métriques pour tous les traits phénotypiques
+
 ```{r}
 X <- as.matrix(NIRS_pheno[, 35:1982])
 
@@ -627,6 +633,7 @@ res_metrics <- do.call(rbind, res_metrics)
 ```
 
 Analyse des résidus
+
 ```{r}
 X <- as.matrix(NIRS_pheno[, 35:1982])
 
@@ -674,6 +681,7 @@ ACP_res <- PCA(table_residus[c(-1)])
 ```
 
 Extratcion des fonctions $\beta$
+
 ```{r}
 Y_cols <- 2:3
 
@@ -691,4 +699,3 @@ matplot(bhat.lf$X.argvals, bhat.lf[,c(2, 4, 5)],
         type = "l",
         ylab=expression(paste(beta(t))), xlab="t")
 ```
-
