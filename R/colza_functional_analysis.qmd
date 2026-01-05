@@ -488,6 +488,20 @@ fun_model <- function(X, Y, Kx = 50, nfold = 10) {
 Extraction des spectres
 ```{r}
 X <- as.matrix(NIRS_pheno[, 35:1982])
+<<<<<<< HEAD
+=======
+Y <- NIRS_pheno$LA
+model <- fun_model(X, Y)
+print(model$err_relative)
+
+#Graphique de la fonction des beta
+bhat.lf <- coef(model$model_fun_out, n=101)
+bhat.lf$upper <- bhat.lf$value + 1.96*bhat.lf$se
+bhat.lf$lower <- bhat.lf$value - 1.96*bhat.lf$se
+fda::matplot(bhat.lf$X.argvals, bhat.lf[,c(2, 4, 5)], 
+        type = "l",
+        ylab=expression(paste(beta(t))), xlab="t")
+>>>>>>> f2917ab222bce88dee70f08e19daf646f360de03
 ```
 
 
@@ -550,7 +564,7 @@ plot_fun <- function(var) {
        ylab = "Résidus")
 }
 
-plot_fun(SLA)
+plot_fun(LWR)
 
 #ACP
 ACP_res <- PCA(table_residus[c(-1)])
