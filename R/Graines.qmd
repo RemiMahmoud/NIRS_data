@@ -14,15 +14,13 @@ graines <- graines |>
 pheno <- pheno |>    
   rename(Genotype = variety)  
 
-NIRS_pheno <- pheno |>    
-  right_join(graines) |>    
-  distinct(Genotype, .keep_all =TRUE)
+NIRS_pheno_g <- graines |>    
+  left_join(pheno)
 
-remove <- c("NAVIG_125", "NAVIG_184", "NAVIG_189", "NAVIG_402", "NAVIG_404")
+matrixplot(NIRS_pheno_g)
 
-NIRS_pheno <- NIRS_pheno[!(row.names(NIRS_pheno)%in%remove),]
+NIRS_pheno_g <- drop_na(NIRS_pheno_g)
 ```
-
 
 ```{r}
 fun_model <- function(X, Y, Kx = 50, nfold = 10) {
@@ -105,22 +103,24 @@ fun_model <- function(X, Y, Kx = 50, nfold = 10) {
 ```
 
 Extraction des spectres
+
 ```{r}
-X <- as.matrix(NIRS_pheno[, 25:1972])
+X <- as.matrix(NIRS_pheno_g[, 2:1949])
 ```
 
 Métriques pour tous les traits phénotypiques
+
 ```{r}
 #Indices des colonnes pour lesquells le modèle sera ajusté
-Y_cols <- 2:3
+Y_cols <- 1950:1972
 
 #Ajustement du modèle pour tous les phénotypes
-res_metrics <- lapply(Y_cols, function(i) {
-  Y <- NIRS_pheno[[i]]
+res_metrics_g <- lapply(Y_cols, function(i) {
+  Y <- NIRS_pheno_g[[i]]
   res_fd_mod <- fun_model(X, Y)
   data.frame(Gain = res_fd_mod$err_relative, 
              MSEP = res_fd_mod$MSEP,
-             row.names = colnames(NIRS_pheno[i]))
+             row.names = colnames(NIRS_pheno_g[i]))
 })
 
 #Simplification du data.frame avec les métriques en colonnes et les traits phénotypiques en ligne
