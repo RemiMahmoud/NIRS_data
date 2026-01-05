@@ -404,116 +404,7 @@ NIRS_pheno <- pheno |>
 
 $$Y = \beta_0 + \int_{t} X\left(t\right)\beta\left(t\right)\mathrm{d}t + \epsilon$$ Réalisation du modèle
 
-```{r}
-#Extraction des valeurs d'absorbances
-X <- as.matrix(NIRS_pheno[, 35:1982])
-
-Y <- NIRS_pheno$RDW
-#bs="ps" signifie que les bases des fonctions des X sont des splines cubiques
-#k = nombre de fonctions propres de la matrice de variance-covariance lissée
-model <- pfr(Y ~ lf(X, k=50, bs="ps"), data = NIRS_pheno)
-```
-
-Représentations graphiques
-
-```{r}
-plot(model[["fitted.values"]], 
-     model[["residuals"]],
-     pch = 21,
-     bg = "red",
-     col = "black",
-     xlab = "Valeurs ajustées",
-     ylab = "Résidus")
-
-plot(NIRS_pheno$RDW, 
-     model[["fitted.values"]],
-     pch = 21,
-     bg = "red",
-     col = "black",
-     xlab = "Valeurs observées",
-     ylab = "Valeurs ajustées")
-
-#plot(model, ylab=expression(paste(beta(t))), xlab="t")
-```
-
-<<<<<<< HEAD
-$R^2$, erreure de prédiction
-
-=======
-$R^2$, erreur de prédiction
->>>>>>> 22e8a6fd87bbafe04937d53967e52918f1e9b8a4
-```{r}
-#R2
-R2 <- cor(NIRS_pheno$RDW, model[["fitted.values"]])^2
-print(R2)
-
-#Erreur de prédiction
-
-#création d'un vecteur qui contiendra les valeurs prédites
-cvpred = numeric(nrow(NIRS_pheno))
-#création des segments
-segments = cvsegments(nrow(NIRS_pheno),10)
-#On ajuste le modèle sur tous les segments sauf le kième 
-for (k in 1:10) {
-  #On extrait les indices des observations qui ne sont pas dans le segment
-  train_id <- setdiff(seq_len(nrow(NIRS_pheno)), segments[[k]])
-  #On extrait les indices des observations qui sont dans le segment 
-  test_id  <- segments[[k]]
-  #Ajustement du modèle sur l'echantillons train
-  model <- pfr(
-    Y ~ lf(X, k = 50, bs = "ps"),
-    data = list(
-      Y = Y[train_id],
-      X = X[train_id, ]
-    )
-  )
-  #prédiction sur l'échantillon test
-  cvpred[test_id] <- predict(
-    model,
-    newdata = list(X = X[test_id, ])
-  )
-}
-
-#Calul du PRESS
-PRESS <- sum((NIRS_pheno$RDW-cvpred)^2)
-#Calcul de la MSEP
-MSEP <- PRESS/length(NIRS_pheno$RDW)
-#RMSEP
-RMSEP <- sqrt(MSEP)
-```
-
-Création d'un modèle nul
-
-```{r}
-#Erreur de prédiction
-cvpred <- numeric(length(Y))
-segments <- cvsegments(length(Y), 10)
-
-for (k in 1:10) {
-  train_id <- setdiff(seq_along(Y), segments[[k]])
-  test_id  <- segments[[k]]
-  # Création du modèle nul qui est la moyenne de l'échantillon train
-  y_mean <- mean(Y[train_id])
-  # Prédiction sur l'échantillon test qui est donc la moyenne de l'échantillon train
-  cvpred[test_id] <- y_mean
-}
-
-# PRESS
-PRESS_null <- sum((Y - cvpred)^2)
-# MSEP
-MSEP_null <- PRESS_null / length(Y)
-# RMSEP
-RMSEP_null <- sqrt(MSEP_null)
-```
-
-Erreure relative en %
-
-```{r}
-err_relative <- (RMSEP_null - RMSEP)/RMSEP_null*100
-```
-
 Création d'une fonction
-
 ```{r}
 fun_model <- function(X, Y, Kx = 50, nfold = 10) {
   
@@ -594,28 +485,15 @@ fun_model <- function(X, Y, Kx = 50, nfold = 10) {
 }
 ```
 
-Test de la fonction
-
+Extraction des spectres
 ```{r}
 X <- as.matrix(NIRS_pheno[, 35:1982])
-Y <- NIRS_pheno$LA
-model <- fun_model(X, Y)
-print(model$err_relative)
-
-#Graphique de la fonction des beta
-bhat.lf <- coef(model$model_fun_out, n=101)
-bhat.lf$upper <- bhat.lf$value + 1.96*bhat.lf$se
-bhat.lf$lower <- bhat.lf$value - 1.96*bhat.lf$se
-matplot(bhat.lf$X.argvals, bhat.lf[,c(2, 4, 5)], 
-        type = "l",
-        ylab=expression(paste(beta(t))), xlab="t")
 ```
+
 
 Métriques pour tous les traits phénotypiques
 
 ```{r}
-X <- as.matrix(NIRS_pheno[, 35:1982])
-
 #Indices des colonnes pour lesquells le modèle sera ajusté
 Y_cols <- 2:24
 
@@ -635,12 +513,10 @@ res_metrics <- do.call(rbind, res_metrics)
 Analyse des résidus
 
 ```{r}
-X <- as.matrix(NIRS_pheno[, 35:1982])
-
 #Indices des colonnes pour lesquelles le modèle sera ajusté
 Y_cols <- 2:24
 
-#Extraction d'un tabelau contenant les résidus pour chaque phénotypes
+#Extraction d'un tableau contenant les résidus pour chaque phénotypes
 res_resid <- lapply(Y_cols, function(i) {
   Y <- NIRS_pheno[[i]]
   res_resid <- fun_model(X, Y)
@@ -692,10 +568,10 @@ res_model <- lapply(Y_cols, function(i) {
   model <- res_model$model_fun_out
 })
 
-bhat.lf <- coef(res_model[[1]][["coefficients"]], n=100)
-bhat.lf$upper <- bhat.lf$value + 1.96*bhat.lf$se
-bhat.lf$lower <- bhat.lf$value - 1.96*bhat.lf$se
-matplot(bhat.lf$X.argvals, bhat.lf[,c(2, 4, 5)], 
-        type = "l",
-        ylab=expression(paste(beta(t))), xlab="t")
+#bhat.lf <- coef(res_model[[1]][["coefficients"]], n=100)
+#bhat.lf$upper <- bhat.lf$value + 1.96*bhat.lf$se
+#bhat.lf$lower <- bhat.lf$value - 1.96*bhat.lf$se
+#matplot(bhat.lf$X.argvals, bhat.lf[,c(2, 4, 5)], 
+#        type = "l",
+#        ylab=expression(paste(beta(t))), xlab="t")
 ```

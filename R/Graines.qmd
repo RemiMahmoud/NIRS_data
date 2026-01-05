@@ -1,0 +1,128 @@
+---
+title: "Graines"
+format: html
+editor: visual
+---
+
+```{r}
+graines <- read.table("data/NIRS_experiment/Graines/NIRS_seeds.csv", 
+                      sep = ",", dec = ".", header = T, stringsAsFactors = T)
+
+graines <- graines |> 
+  rename(Genotype = X)
+#Changement des noms de colonnes de variety vers Genotype dans pheno
+pheno <- pheno |>    
+  rename(Genotype = variety)  
+
+NIRS_pheno <- pheno |>    
+  right_join(graines) |>    
+  distinct(Genotype, .keep_all =TRUE)
+
+remove <- c("NAVIG_125", "NAVIG_184", "NAVIG_189", "NAVIG_402", "NAVIG_404")
+
+NIRS_pheno <- NIRS_pheno[!(row.names(NIRS_pheno)%in%remove),]
+```
+
+
+```{r}
+fun_model <- function(X, Y, Kx = 50, nfold = 10) {
+  
+  #Création des segments
+  segments <- cvsegments(length(Y), nfold)
+  
+  ### Modèle nul ###
+  #Création d'un vecteur pour le receuil des valeurs prédites
+  cvpred_nul <- numeric(length(Y))
+  for (k in 1:nfold) {
+    #Indices des observations pour l'ajustement (observations hors du segment k)
+    train_id <- setdiff(seq_len(length(Y)), segments[[k]])
+    #Indices des observations pour la prédiction (observations du segment k)
+    test_id  <- segments[[k]]
+    # Création du modèle nul qui est la moyenne de l'échantillon train
+    y_mean <- mean(Y[train_id])
+    # Prédiction sur l'échantillon test qui est donc la moyenne de l'échantillon train
+    cvpred_nul[test_id] <- y_mean
+  }
+  
+  #PRESS du modèle nul
+  PRESS_nul <- sum((Y - cvpred_nul)^2)
+  #MSEP du modèle nul
+  MSEP_nul <- mean((Y - cvpred_nul)^2)
+  #RMSEP du modèle nul
+  RMSEP_nul <- sqrt(MSEP_nul)
+  
+  ### Model fonctionnel ###
+  #création d'un vecteur qui contiendra les valeurs prédites
+  cvpred = numeric(length(Y))
+  #On ajuste le modèle sur tous les segments sauf le kième 
+  for (k in 1:nfold) {
+    #Indices des observations pour l'ajustement (observations hors du segment k)
+    train_id <- setdiff(seq_len(length(Y)), segments[[k]])
+    #Indices des observations pour la prédiction (observations du segment k)
+    test_id  <- segments[[k]]
+    #Ajustement du modèle sur l'echantillon train
+    fd_mod <- pfr(
+      Y ~ lf(X, k = Kx, bs = "ps"),
+      data = list(
+        Y = Y[train_id],
+        X = X[train_id, ]
+      )
+    )
+    #prédiction sur l'échantillon test
+    cvpred[test_id] <- predict(
+      fd_mod,
+      newdata = list(X = X[test_id, ])
+    )
+  }
+  
+  #PRESS
+  PRESS <- sum((Y-cvpred)^2)
+  #MSEP
+  MSEP <- mean((Y-cvpred)^2)
+  #RMSEP
+  RMSEP <- sqrt(MSEP)
+  
+  ### Gain relative en % ###
+  err_relative <- (MSEP_nul - MSEP)/MSEP_nul*100
+  err_relative <- round(err_relative, 2)
+  
+  #Appel des sorties
+  #Liste contenant les résultats
+  result <- list()
+  #Appel du gain avec $err_relative
+  result$err_relative <- err_relative
+  #Appel de la MSEP avec $MSEP
+  result$MSEP <- round(MSEP, 2)
+  #Appel de la régression fonctionnelle en sortie de fonction avec $model_fun_out
+  result$model_fun_out <- fd_mod
+  #Appel des résidus des régressions avec $model_fun_residus
+  residus_vc <- Y - cvpred
+  result$model_fun_residus <- residus_vc
+  #Appel des prédictions avec $pred_fun_out
+  result$pred_fun_out <- cvpred
+  return(result)
+}
+```
+
+Extraction des spectres
+```{r}
+X <- as.matrix(NIRS_pheno[, 25:1972])
+```
+
+Métriques pour tous les traits phénotypiques
+```{r}
+#Indices des colonnes pour lesquells le modèle sera ajusté
+Y_cols <- 2:3
+
+#Ajustement du modèle pour tous les phénotypes
+res_metrics <- lapply(Y_cols, function(i) {
+  Y <- NIRS_pheno[[i]]
+  res_fd_mod <- fun_model(X, Y)
+  data.frame(Gain = res_fd_mod$err_relative, 
+             MSEP = res_fd_mod$MSEP,
+             row.names = colnames(NIRS_pheno[i]))
+})
+
+#Simplification du data.frame avec les métriques en colonnes et les traits phénotypiques en ligne
+res_metrics <- do.call(rbind, res_metrics)
+```
