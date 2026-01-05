@@ -601,7 +601,7 @@ print(model$err_relative)
 bhat.lf <- coef(model$model_fun_out, n=101)
 bhat.lf$upper <- bhat.lf$value + 1.96*bhat.lf$se
 bhat.lf$lower <- bhat.lf$value - 1.96*bhat.lf$se
-matplot(bhat.lf$X.argvals, bhat.lf[,c(2, 4, 5)], 
+fda::matplot(bhat.lf$X.argvals, bhat.lf[,c(2, 4, 5)], 
         type = "l",
         ylab=expression(paste(beta(t))), xlab="t")
 ```
@@ -667,7 +667,7 @@ plot_fun <- function(var) {
        ylab = "Résidus")
 }
 
-plot_fun(SLA)
+plot_fun(LWR)
 
 #ACP
 ACP_res <- PCA(table_residus[c(-1)])
