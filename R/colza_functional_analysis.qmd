@@ -9,11 +9,12 @@ library(tidyverse)
 library(fda)
 library(RColorBrewer)
 library(patchwork)
-library(fda)
 library(FactoMineR)
 #regression fonctionelle
 library(refund)
 library(pls)
+library(VIM)
+library(naniar)
 
 conflicted::conflicts_prefer(dplyr::filter, dplyr::select)
 
@@ -381,30 +382,33 @@ p1/p2
 
 ```
 
-## Regression fonctionnelle
+### Regression fonctionnelle
 
 ```{r}
-cols <- c("LA","TDW","ADW","RDW","LWR","LAR","SLA","SR","SNQ","LASNQ","TNQ",
-          "SNU","NUtE_TOT","NUtE_AER","Sp_L1_L4","Sp_L1_L2","Sp_L2_L3",
-          "Sp_L3_L4","SCA")  
-
-pheno <- pheno |>    
-  mutate(across(all_of(cols), as.numeric))  
-
 #Changement des noms de colonnes de variety vers Genotype dans pheno
 pheno <- pheno |>    
   rename(Genotype = variety)  
 
-NIRS_pheno <- pheno |>    
-  left_join(feuilles_s) |>    
-  distinct(Genotype, .keep_all =TRUE)
+#Fusion des jeux de données pheno et feuilles_s_MEAN pour crée NIRS_pheno_f
+NIRS_pheno_f <- feuilles_s_MEAN |>    
+  left_join(pheno)
+
+#Visualisation de potentielles NA
+#matrixplot(NIRS_pheno_f)
+
+#Comptage de potentielles NA
+#print(n_miss(NIRS_pheno_f))
+
+#Suppression des lignes contenant des NA
+NIRS_pheno_f <- drop_na(NIRS_pheno_f)
 ```
 
-#### Réalisation du modèle Linear Scalar-on-Function Regression (LSFR)
+Réalisation du modèle Linear Scalar-on-Function Regression (LSFR)
 
-$$Y = \beta_0 + \int_{t} X\left(t\right)\beta\left(t\right)\mathrm{d}t + \epsilon$$ Réalisation du modèle
+$$Y = \beta_0 + \int_{t} X\left(t\right)\beta\left(t\right)\mathrm{d}t + \epsilon$$
 
-Création d'une fonction
+Création d'une fonction appliquant la LSFR
+
 ```{r}
 fun_model <- function(X, Y, Kx = 50, nfold = 10) {
   
@@ -485,72 +489,56 @@ fun_model <- function(X, Y, Kx = 50, nfold = 10) {
 }
 ```
 
-Extraction des spectres
+Extraction des spectres (X) et des phénotypes (Y)
+
 ```{r}
-X <- as.matrix(NIRS_pheno[, 35:1982])
-<<<<<<< HEAD
-=======
-Y <- NIRS_pheno$LA
-model <- fun_model(X, Y)
-print(model$err_relative)
+#Extraction des colonnes contenants les spectres
+X <- as.matrix(NIRS_pheno_f[, 2:1949])
 
-#Graphique de la fonction des beta
-bhat.lf <- coef(model$model_fun_out, n=101)
-bhat.lf$upper <- bhat.lf$value + 1.96*bhat.lf$se
-bhat.lf$lower <- bhat.lf$value - 1.96*bhat.lf$se
-fda::matplot(bhat.lf$X.argvals, bhat.lf[,c(2, 4, 5)], 
-        type = "l",
-        ylab=expression(paste(beta(t))), xlab="t")
->>>>>>> f2917ab222bce88dee70f08e19daf646f360de03
+#Indices des colonnes pour lesquells le modèle sera ajusté
+Y_cols <- 1950:1972
 ```
-
 
 Métriques pour tous les traits phénotypiques
 
 ```{r}
-#Indices des colonnes pour lesquells le modèle sera ajusté
-Y_cols <- 2:24
-
 #Ajustement du modèle pour tous les phénotypes
-res_metrics <- lapply(Y_cols, function(i) {
-  Y <- NIRS_pheno[[i]]
+res_metrics_f <- lapply(Y_cols, function(i) {
+  Y <- NIRS_pheno_f[[i]]
   res_fd_mod <- fun_model(X, Y)
   data.frame(Gain = res_fd_mod$err_relative, 
              MSEP = res_fd_mod$MSEP,
-             row.names = colnames(NIRS_pheno[i]))
+             row.names = colnames(NIRS_pheno_f[i]))
 })
 
 #Simplification du data.frame avec les métriques en colonnes et les traits phénotypiques en ligne
-res_metrics <- do.call(rbind, res_metrics)
+res_metrics_f <- do.call(rbind, res_metrics_f)
 ```
 
 Analyse des résidus
 
 ```{r}
-#Indices des colonnes pour lesquelles le modèle sera ajusté
-Y_cols <- 2:24
-
 #Extraction d'un tableau contenant les résidus pour chaque phénotypes
 res_resid <- lapply(Y_cols, function(i) {
-  Y <- NIRS_pheno[[i]]
+  Y <- NIRS_pheno_f[[i]]
   res_resid <- fun_model(X, Y)
   residus <- res_resid$model_fun_residus
 })
 
 table_residus <- as.data.frame(do.call(cbind, res_resid))
-colnames(table_residus) <- colnames(NIRS_pheno)[Y_cols]
-table_residus <- cbind(NIRS_pheno[1], table_residus)
+colnames(table_residus) <- colnames(NIRS_pheno_f)[Y_cols]
+table_residus <- cbind(NIRS_pheno_f[1], table_residus)
 
 #Extraction d'un tabelau contenant les prédictions pour chaque phénotypes
 res_pred <- lapply(Y_cols, function(i) {
-  Y <- NIRS_pheno[[i]]
+  Y <- NIRS_pheno_f[[i]]
   res_pred <- fun_model(X, Y)
   pred <- res_pred$pred_fun_out
 })
 
 table_pred <- as.data.frame(do.call(cbind, res_pred))
-colnames(table_pred) <- colnames(NIRS_pheno)[Y_cols]
-table_pred <- cbind(NIRS_pheno[1], table_pred)
+colnames(table_pred) <- colnames(NIRS_pheno_f)[Y_cols]
+table_pred <- cbind(NIRS_pheno_f[1], table_pred)
 
 #Représentation graphique résidus en fonction des prédictions
 plot_fun <- function(var) {
@@ -567,25 +555,26 @@ plot_fun <- function(var) {
 plot_fun(LWR)
 
 #ACP
-ACP_res <- PCA(table_residus[c(-1)])
+#ACP_res <- PCA(table_residus[c(-1)])
 ```
 
-Extratcion des fonctions $\beta$
+Extraction des fonctions $\beta$
 
 ```{r}
-Y_cols <- 2:3
-
 #Graphique de la fonction des beta
 res_model <- lapply(Y_cols, function(i) {
-  Y <- NIRS_pheno[[i]]
+  Y <- NIRS_pheno_f[[i]]
   res_model <- fun_model(X, Y)
   model <- res_model$model_fun_out
 })
 
-#bhat.lf <- coef(res_model[[1]][["coefficients"]], n=100)
-#bhat.lf$upper <- bhat.lf$value + 1.96*bhat.lf$se
-#bhat.lf$lower <- bhat.lf$value - 1.96*bhat.lf$se
-#matplot(bhat.lf$X.argvals, bhat.lf[,c(2, 4, 5)], 
-#        type = "l",
-#        ylab=expression(paste(beta(t))), xlab="t")
+names(res_model) <- colnames(NIRS_pheno_f[Y_cols])
+
+#Représentation graphique des fonctions des beta
+bhat.lf <- coef(res_model[["SR"]], n=100)
+bhat.lf$upper <- bhat.lf$value + 1.96*bhat.lf$se
+bhat.lf$lower <- bhat.lf$value - 1.96*bhat.lf$se
+fda::matplot(bhat.lf$X.argvals, bhat.lf[,c(2, 4, 5)], 
+        type = "l",
+        ylab=expression(paste(beta(t))), xlab="t")
 ```

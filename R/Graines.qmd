@@ -3,26 +3,34 @@ title: "Graines"
 format: html
 editor: visual
 ---
+Librairies
+```{r}
+library(refund)
+library(pls)
+library(FactoMineR)
+library(VIM)
+library(naniar)
+```
+
 
 ```{r}
-graines <- read.table("data/NIRS_experiment/Graines/NIRS_seeds.csv", 
-                      sep = ",", dec = ".", header = T, stringsAsFactors = T)
-
-graines <- graines |> 
-  rename(Genotype = X)
 #Changement des noms de colonnes de variety vers Genotype dans pheno
 pheno <- pheno |>    
   rename(Genotype = variety)  
 
-NIRS_pheno <- pheno |>    
-  right_join(graines) |>    
-  distinct(Genotype, .keep_all =TRUE)
+#Fusion des jeux de données pheno et graines_MEAN pour crée NIRS_pheno_g
+NIRS_pheno_g <- graines_MEAN |>    
+  left_join(pheno)
 
-remove <- c("NAVIG_125", "NAVIG_184", "NAVIG_189", "NAVIG_402", "NAVIG_404")
+#Visualisation de potentielles NA
+#matrixplot(NIRS_pheno_g)
 
-NIRS_pheno <- NIRS_pheno[!(row.names(NIRS_pheno)%in%remove),]
+#Comptage de potentielles NA
+#print(n_miss(NIRS_pheno_g))
+
+#Suppression des lignes contenant des NA
+NIRS_pheno_g <- drop_na(NIRS_pheno_g)
 ```
-
 
 ```{r}
 fun_model <- function(X, Y, Kx = 50, nfold = 10) {
@@ -104,25 +112,89 @@ fun_model <- function(X, Y, Kx = 50, nfold = 10) {
 }
 ```
 
-Extraction des spectres
+Extraction des spectres (X) et des phénotypes (Y)
 ```{r}
-X <- as.matrix(NIRS_pheno[, 25:1972])
+#Extraction des colonnes contenants les spectres
+X <- as.matrix(NIRS_pheno_g[, 2:1949])
+
+#Indices des colonnes pour lesquells le modèle sera ajusté
+Y_cols <- 1950:1972
 ```
 
 Métriques pour tous les traits phénotypiques
 ```{r}
-#Indices des colonnes pour lesquells le modèle sera ajusté
-Y_cols <- 2:3
-
 #Ajustement du modèle pour tous les phénotypes
-res_metrics <- lapply(Y_cols, function(i) {
-  Y <- NIRS_pheno[[i]]
+res_metrics_g <- lapply(Y_cols, function(i) {
+  Y <- NIRS_pheno_g[[i]]
   res_fd_mod <- fun_model(X, Y)
   data.frame(Gain = res_fd_mod$err_relative, 
              MSEP = res_fd_mod$MSEP,
-             row.names = colnames(NIRS_pheno[i]))
+             row.names = colnames(NIRS_pheno_g[i]))
 })
 
 #Simplification du data.frame avec les métriques en colonnes et les traits phénotypiques en ligne
-res_metrics <- do.call(rbind, res_metrics)
+res_metrics_g <- do.call(rbind, res_metrics_g)
 ```
+
+Analyse des résidus
+```{r}
+#Extraction d'un tableau contenant les résidus pour chaque phénotypes
+res_resid <- lapply(Y_cols, function(i) {
+  Y <- NIRS_pheno_g[[i]]
+  res_resid <- fun_model(X, Y)
+  residus <- res_resid$model_fun_residus
+})
+
+table_residus <- as.data.frame(do.call(cbind, res_resid))
+colnames(table_residus) <- colnames(NIRS_pheno_g)[Y_cols]
+table_residus <- cbind(NIRS_pheno_g[1], table_residus)
+
+#Extraction d'un tabelau contenant les prédictions pour chaque phénotypes
+res_pred <- lapply(Y_cols, function(i) {
+  Y <- NIRS_pheno_g[[i]]
+  res_pred <- fun_model(X, Y)
+  pred <- res_pred$pred_fun_out
+})
+
+table_pred <- as.data.frame(do.call(cbind, res_pred))
+colnames(table_pred) <- colnames(NIRS_pheno_g)[Y_cols]
+table_pred <- cbind(NIRS_pheno_g[1], table_pred)
+
+#Représentation graphique résidus en fonction des prédictions
+plot_fun <- function(var) {
+  var_name <- deparse(substitute(var))
+  plot(table_pred[[var_name]], 
+       table_residus[[var_name]],
+       pch = 21,
+       bg = "red",
+       col = "black",
+       xlab = "Prédiction après VC",
+       ylab = "Résidus")
+}
+
+plot_fun(RDW)
+
+#ACP
+#ACP_res <- PCA(table_residus[c(-1)])
+```
+
+Extraction des fonctions $\beta$
+```{r}
+#Graphique de la fonction des beta
+res_model <- lapply(Y_cols, function(i) {
+  Y <- NIRS_pheno_g[[i]]
+  res_model <- fun_model(X, Y)
+  model <- res_model$model_fun_out
+})
+
+names(res_model) <- colnames(NIRS_pheno_g[Y_cols])
+
+#Représentation graphique des fonctions des beta
+bhat.lf <- coef(res_model[["SR"]], n=100)
+bhat.lf$upper <- bhat.lf$value + 1.96*bhat.lf$se
+bhat.lf$lower <- bhat.lf$value - 1.96*bhat.lf$se
+fda::matplot(bhat.lf$X.argvals, bhat.lf[,c(2, 4, 5)], 
+        type = "l",
+        ylab=expression(paste(beta(t))), xlab="t")
+```
+
